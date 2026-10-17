@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sala de Entrenamiento</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="vendor/cm-chessboard/assets/chessboard.css">
+  <link rel="stylesheet" href="vendor/cm-chessboard/assets/extensions/markers/markers.css">
+  <link rel="stylesheet" href="vendor/cm-chessboard/assets/extensions/arrows/arrows.css">
+  <link rel="stylesheet" href="vendor/cm-chessboard/assets/extensions/promotion-dialog/promotion-dialog.css">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="top">
+    <div class="top-inner">
+      <a class="brand" href="#dashboard"><span class="brand-mark" aria-hidden="true">♞</span> Sala de Entrenamiento</a>
+      <nav class="tabs" aria-label="Secciones">
+        <a href="#dashboard" data-page="dashboard">Dashboard</a>
+        <a href="#analysis" data-page="analysis">Análisis</a>
+        <a href="#openings" data-page="openings">Aperturas</a>
+        <a href="#rivals" data-page="rivals">Rivales</a>
+        <a href="#database" data-page="database">Base de datos</a>
+        <a href="#settings" data-page="settings">Ajustes</a>
+      </nav>
+    </div>
+  </header>
+  <main class="wrap">
+    <div id="page-dashboard" class="page"></div>
+    <div id="page-analysis" class="page" hidden></div>
+    <div id="page-openings" class="page" hidden></div>
+    <div id="page-rivals" class="page" hidden></div>
+    <div id="page-database" class="page" hidden></div>
+    <div id="page-settings" class="page" hidden></div>
+  </main>
+  <footer class="foot wrap">Motor: Stockfish 18 (GPLv3) · Partidas y explorador: API de Lichess · Datos de entrenamiento: tu hoja de Google</footer>
+  <script src="vendor/d3.min.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
