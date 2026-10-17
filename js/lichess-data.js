@@ -47,11 +47,15 @@ export async function clearCache() {
 const isoDay = (ms) => new Date(ms).toISOString().slice(0, 10)
 const isoMinute = (ms) => new Date(ms).toISOString().slice(0, 16)
 
+export const historyFrom = () => settings.historyFrom || '2026-01-01'
+
 // Partidas de un usuario: la primera vez desde la fecha de Ajustes, después solo las nuevas.
-export async function getGames(username, onProgress) {
+// Sin refresh, si ya hay partidas guardadas se usan tal cual y no se pregunta a Lichess.
+export async function getGames(username, onProgress, { refresh = false } = {}) {
   const key = `games:${username.toLowerCase()}`
   const cached = (await cacheGet(key)) || { games: [], from: null }
-  const from = settings.historyFrom || '2026-01-01'
+  const from = historyFrom()
+  if (!refresh && cached.from === from && cached.games.length) return cached.games
   let games = cached.games
   let since
   if (cached.from !== from) {
@@ -69,9 +73,10 @@ export async function getGames(username, onProgress) {
   return games
 }
 
-async function getPuzzles(token, username) {
+async function getPuzzles(token, username, refresh) {
   const key = `puzzles:${username.toLowerCase()}`
   const cached = (await cacheGet(key)) || []
+  if (!refresh && cached.length) return cached
   const fresh = await fetchPuzzleActivity(token, { max: cached.length ? 500 : 5000 })
   const keyOf = (p) => `${p.puzzle?.id}|${p.date}`
   const seen = new Set(cached.map(keyOf))
@@ -80,8 +85,12 @@ async function getPuzzles(token, username) {
   return all
 }
 
-// Algunas consultas son pequeñas: se piden siempre y la caché solo sirve si Lichess no responde.
-async function fresh(key, fn) {
+// Sin refresh se usa lo guardado; con refresh se pide a Lichess y lo guardado solo sirve si no responde.
+async function fresh(key, fn, refresh) {
+  if (!refresh) {
+    const v = await cacheGet(key)
+    if (v !== undefined) return v
+  }
   try {
     const v = await fn()
     await cacheSet(key, v)
@@ -142,8 +151,13 @@ function puzzleRows(name, acts) {
 
 // Carga todo para todos los jugadores de Ajustes. onStatus(texto) informa del avance.
 // notes recoge avisos que no impiden mostrar el resto (p. ej. falta el token de puzzles).
-export async function loadAll(onStatus = () => {}) {
-  const out = { ratings: [], partidas: [], puzzles: [], storm: [], notes: [] }
+// refresh: true pide a Lichess lo nuevo (botón Actualizar); si no, se muestra lo ya descargado.
+export async function loadAll(onStatus = () => {}, { refresh = false } = {}) {
+  const out = { ratings: [], partidas: [], puzzles: [], storm: [], notes: [], updated: null }
+  const from = historyFrom()
+  const fromMs = Date.parse(from + 'T00:00:00Z')
+  const stormDays = Math.min(365, Math.ceil((Date.now() - fromMs) / 86400000) + 1)
+  const since = (rows) => rows.filter((r) => (r.Fecha || r['Fecha y hora'] || '') >= from)
   const players = settings.players.filter((p) => p.lichess)
   if (!players.length) throw new Error('Escribe vuestros usuarios de Lichess en Ajustes para ver el dashboard.')
   // Cada fuente va por separado: si una falla, el resto se muestra igual y se avisa de cuál falló.
@@ -154,21 +168,25 @@ export async function loadAll(onStatus = () => {}) {
   for (const p of players) {
     const u = p.lichess
     onStatus(`Leyendo el rating de ${u}…`)
-    await step(`Rating de ${p.name}`, async () => out.ratings.push(...ratingRows(p.name, await fresh(`rating:${u.toLowerCase()}`, () => fetchRatingHistory(u)))))
+    await step(`Rating de ${p.name}`, async () => out.ratings.push(...since(ratingRows(p.name, await fresh(`rating:${u.toLowerCase()}`, () => fetchRatingHistory(u), refresh)))))
     onStatus(`Leyendo Puzzle Storm de ${u}…`)
-    await step(`Puzzle Storm de ${p.name}`, async () => out.storm.push(...stormRows(p.name, await fresh(`storm:${u.toLowerCase()}`, () => fetchStorm(u)))))
+    await step(`Puzzle Storm de ${p.name}`, async () => out.storm.push(...since(stormRows(p.name, await fresh(`storm:${u.toLowerCase()}`, () => fetchStorm(u, stormDays), refresh)))))
     onStatus(`Descargando partidas de ${u}…`)
     await step(`Partidas de ${p.name}`, async () => {
-      const games = await getGames(u, (n) => onStatus(`Descargando partidas nuevas de ${u}: ${n}…`))
+      const games = await getGames(u, (n) => onStatus(`Descargando partidas nuevas de ${u}: ${n}…`), { refresh })
       out.partidas.push(...gameRows(p.name, u, games))
     })
     if (p.puzzleToken) {
       onStatus(`Leyendo los puzzles de ${u}…`)
-      await step(`Puzzles de ${p.name}`, async () => out.puzzles.push(...puzzleRows(p.name, await getPuzzles(p.puzzleToken, u))))
+      await step(`Puzzles de ${p.name}`, async () => out.puzzles.push(...since(puzzleRows(p.name, await getPuzzles(p.puzzleToken, u, refresh)))))
     } else {
       out.notes.push(`Para ver los puzzles de ${p.name} uno a uno, pega su token de puzzles en Ajustes.`)
     }
   }
+  // Fecha de la última actualización: se guarda solo si alguna consulta llegó a Lichess bien.
+  const prev = await cacheGet('updated')
+  out.updated = prev ?? null
+  if ((refresh || prev == null) && out.failed < players.length * 3) { out.updated = Date.now(); await cacheSet('updated', out.updated) }
   if (out.failed && !out.ratings.length && !out.storm.length && !out.partidas.length) {
     throw new Error(`No se pudo leer nada de Lichess. ${out.notes.filter((n) => !n.startsWith('Para ver')).join(' ')}`)
   }

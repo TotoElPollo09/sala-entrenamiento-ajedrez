@@ -1,6 +1,6 @@
 // Página Dashboard: métricas de entrenamiento leídas de Lichess.
 /* global d3 */
-import { loadAll } from './lichess-data.js'
+import { loadAll, historyFrom } from './lichess-data.js'
 import * as M from './metrics.js'
 import { lineChart, fDay, SERIES } from './charts.js'
 import { settings, emit, onSettingsChange } from './store.js'
@@ -18,7 +18,7 @@ const HTML = `
   </div>
   <div class="row gap">
     <div class="seg" role="group" aria-label="Jugador" id="d-players"></div>
-    <button class="btn" id="d-reload" type="button">Recargar</button>
+    <button class="btn" id="d-reload" type="button">Actualizar</button>
   </div>
 </div>
 <div class="alert" id="d-error" hidden></div>
@@ -74,7 +74,7 @@ export function init(el) {
   root = el
   root.innerHTML = HTML
   player = settings.players[0]?.name || 'Johan'
-  root.querySelector('#d-reload').addEventListener('click', load)
+  root.querySelector('#d-reload').addEventListener('click', () => load({ refresh: true }))
   root.querySelector('#d-ape').addEventListener('click', (e) => {
     const tr = e.target.closest('tr[data-i]')
     if (!tr) return
@@ -90,19 +90,20 @@ export function init(el) {
   load()
 }
 
-async function load() {
+async function load({ refresh = false } = {}) {
   const err = root.querySelector('#d-error')
   err.hidden = true
   const take = root.querySelector('#d-take')
   const btn = root.querySelector('#d-reload')
   btn.disabled = true
   try {
-    data = await loadAll((t) => { if (!data) take.textContent = t })
+    data = await loadAll((t) => { take.textContent = t }, { refresh })
     const notes = root.querySelector('#d-notes')
     const fails = data.notes.filter((n) => !n.startsWith('Para ver'))
     const tips = data.notes.filter((n) => n.startsWith('Para ver'))
-    notes.textContent = tips.join(' ')
-    notes.hidden = !tips.length
+    const when = data.updated ? `Datos desde el ${fDay(new Date(historyFrom() + 'T00:00:00Z'))}, actualizados el ${new Date(data.updated).toLocaleString('es', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}. Pulsa Actualizar para traer lo nuevo de Lichess.` : ''
+    notes.textContent = [when, ...tips].filter(Boolean).join(' ')
+    notes.hidden = !notes.textContent
     err.textContent = fails.length ? `No se pudo leer de Lichess: ${fails.join(' ')}` : ''
     err.hidden = !fails.length
     draw()
