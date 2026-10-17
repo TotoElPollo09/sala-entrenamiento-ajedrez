@@ -1,6 +1,6 @@
-// Página Dashboard: métricas de entrenamiento leídas de Lichess.
+// Página Dashboard: métricas de la hoja de entrenamiento.
 /* global d3 */
-import { loadAll, historyFrom } from './lichess-data.js'
+import { loadAll } from './sheet.js'
 import * as M from './metrics.js'
 import { lineChart, fDay, SERIES } from './charts.js'
 import { settings, emit, onSettingsChange } from './store.js'
@@ -14,15 +14,14 @@ const HTML = `
 <div class="page-head">
   <div>
     <h1>Dashboard</h1>
-    <p class="lead" id="d-take">Leyendo vuestros datos de Lichess…</p>
+    <p class="lead" id="d-take">Cargando tu hoja de entrenamiento…</p>
   </div>
   <div class="row gap">
     <div class="seg" role="group" aria-label="Jugador" id="d-players"></div>
-    <button class="btn" id="d-reload" type="button">Actualizar</button>
+    <button class="btn" id="d-reload" type="button">Recargar</button>
   </div>
 </div>
 <div class="alert" id="d-error" hidden></div>
-<p class="note" id="d-notes" hidden></p>
 <div class="tiles" id="d-tiles"></div>
 <section class="card" id="d-rating-card">
   <h3>Evolución del rating</h3>
@@ -74,7 +73,7 @@ export function init(el) {
   root = el
   root.innerHTML = HTML
   player = settings.players[0]?.name || 'Johan'
-  root.querySelector('#d-reload').addEventListener('click', () => load({ refresh: true }))
+  root.querySelector('#d-reload').addEventListener('click', load)
   root.querySelector('#d-ape').addEventListener('click', (e) => {
     const tr = e.target.closest('tr[data-i]')
     if (!tr) return
@@ -90,29 +89,16 @@ export function init(el) {
   load()
 }
 
-async function load({ refresh = false } = {}) {
+async function load() {
   const err = root.querySelector('#d-error')
   err.hidden = true
-  const take = root.querySelector('#d-take')
-  const btn = root.querySelector('#d-reload')
-  btn.disabled = true
   try {
-    data = await loadAll((t) => { take.textContent = t }, { refresh })
-    const notes = root.querySelector('#d-notes')
-    const fails = data.notes.filter((n) => !n.startsWith('Para ver'))
-    const tips = data.notes.filter((n) => n.startsWith('Para ver'))
-    const when = data.updated ? `Datos desde el ${fDay(new Date(historyFrom() + 'T00:00:00Z'))}, actualizados el ${new Date(data.updated).toLocaleString('es', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}. Pulsa Actualizar para traer lo nuevo de Lichess.` : ''
-    notes.textContent = [when, `Leído de Lichess: ${data.summary.join(' ')}`, ...tips].filter(Boolean).join(' ')
-    notes.hidden = !notes.textContent
-    err.textContent = fails.length ? `No se pudo leer de Lichess: ${fails.join(' ')}` : ''
-    err.hidden = !fails.length
+    data = await loadAll()
     draw()
   } catch (e) {
     err.textContent = e.message
     err.hidden = false
     root.querySelector('#d-take').textContent = 'No se pudieron cargar los datos.'
-  } finally {
-    btn.disabled = false
   }
 }
 
@@ -151,11 +137,8 @@ function draw() {
     const sub = r.fecha === r.fechaPrevia ? '±0' : `${signed(r.cambio)} desde ${fDay(new Date(r.fechaPrevia.slice(0, 10) + 'T00:00:00Z'))}`
     return tile(MOD[mod] === 'Puzzles' ? 'Rating de puzzles' : MOD[mod], r.actual, sub, r.cambio > 0 ? 'up' : r.cambio < 0 ? 'down' : '')
   })
-  const runs = data.storm.filter((r) => r.Jugador === player).reduce((a, r) => a + (r['Sesiones del día'] || 0), 0)
-  tiles.push(tile('Récord Puzzle Storm', sr ? sr.record : '—', sr ? `${runs} sesiones en ${sd.length} días` + (sr.media30 != null ? ` · media 30 días ${sr.media30.toFixed(1)}` : '') : 'Sin sesiones desde el 1 de enero'))
-  const prof = data.profiles[player]
-  if (pr) tiles.push(tile('Puzzles acertados', pct(pr.precision), `${d3.format(',')(pr.total)} puzzles desde el 1 de enero`))
-  else tiles.push(tile('Puzzles jugados', prof?.puzzles != null ? d3.format(',')(prof.puzzles) : '—', 'Total en Lichess. Pega el token en Ajustes para ver los de este año'))
+  tiles.push(tile('Récord Puzzle Storm', sr ? sr.record : '—', sr && sr.media30 != null ? `Media últimos 30 días: ${sr.media30.toFixed(1)}` : 'Sin sesiones recientes'))
+  tiles.push(tile('Puzzles acertados', pr ? pct(pr.precision) : '—', pr ? `${pr.total} puzzles registrados` : 'Sin puzzles registrados'))
   root.querySelector('#d-tiles').innerHTML = tiles.join('')
 
   drawCharts()
@@ -166,9 +149,7 @@ function draw() {
   tbox.replaceChildren()
   root.querySelector('#d-temas-note').textContent = temas.length
     ? 'Temas con al menos 10 intentos, de peor a mejor. Los de arriba son los que más conviene entrenar.'
-    : settings.players.find((p) => p.name === player)?.puzzleToken
-      ? `${player} aún no tiene temas con 10 intentos.`
-      : `Pega el token de puzzles de ${player} en Ajustes para ver su acierto por tema.`
+    : `La hoja no tiene puzzles de ${player}. Falta su token de Lichess con permiso de puzzles en la sincronización.`
   for (const t of temas) {
     const row = document.createElement('div'); row.className = 'bar'
     const n = document.createElement('span'); n.className = 'bn'; n.textContent = `${temaName(t.tema)} · ${t.intentos}`

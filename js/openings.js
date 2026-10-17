@@ -3,8 +3,7 @@
 import { StudyBoard, uciToSan, numberLine, Chess } from './board.js'
 import { sharedEngine, formatScore } from './engine.js'
 import { settings, on, emit } from './store.js'
-import { fetchExplorer } from './lichess.js'
-import { getGames } from './lichess-data.js'
+import { fetchUserGames, fetchExplorer } from './lichess.js'
 import { gamesOfPlayer } from './db.js'
 import { buildTree, movesAt, colorOf, scoreFor } from './explorer.js'
 import { state } from './state.js'
@@ -145,7 +144,7 @@ async function loadSource() {
       srcPlayer = p.lichess
       if (!cache.has(p.lichess)) {
         status.textContent = `Descargando partidas de ${p.lichess} desde Lichess…`
-        cache.set(p.lichess, await getGames(p.lichess, (n) => { status.textContent = `Descargando partidas nuevas de ${p.lichess}: ${n}…` }))
+        cache.set(p.lichess, await fetchUserGames(p.lichess, { max: 1000, onProgress: (n) => { status.textContent = `Descargando partidas de ${p.lichess}: ${n}…` } }))
       }
       sourceGames = cache.get(p.lichess)
     } else if (v === 'rival') {
