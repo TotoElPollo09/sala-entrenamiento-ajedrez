@@ -9,6 +9,15 @@ function headers(extra = {}, token = settings.lichessToken) {
   return h
 }
 
+// fetch con un mensaje en español cuando no hay conexión con Lichess.
+async function get(url, opts) {
+  try {
+    return await fetch(url, opts)
+  } catch {
+    throw new Error('no hay conexión con Lichess (revisa internet o algún bloqueador de anuncios).')
+  }
+}
+
 async function ok(res, what) {
   if (res.ok) return res
   if (res.status === 404) throw new Error(`${what}: no existe en Lichess.`)
@@ -18,7 +27,7 @@ async function ok(res, what) {
 }
 
 export async function fetchUser(username) {
-  const res = await ok(await fetch(`${API}/api/user/${encodeURIComponent(username)}`, { headers: headers() }), `El usuario ${username}`)
+  const res = await ok(await get(`${API}/api/user/${encodeURIComponent(username)}`, { headers: headers() }), `El usuario ${username}`)
   return res.json()
 }
 
@@ -30,7 +39,7 @@ export async function fetchUserGames(username, { max = 300, since = 0, perfType 
   if (perfType) p.set('perfType', perfType)
   if (color) p.set('color', color)
   if (rated) p.set('rated', rated)
-  const res = await ok(await fetch(`${API}/api/games/user/${encodeURIComponent(username)}?${p}`, {
+  const res = await ok(await get(`${API}/api/games/user/${encodeURIComponent(username)}?${p}`, {
     headers: headers({ Accept: 'application/x-ndjson' }), signal,
   }), `El usuario ${username}`)
   return readNdjson(res, fromLichess, onProgress)
@@ -60,19 +69,19 @@ async function readNdjson(res, map, onProgress) {
 
 // Historial de rating por modalidad (público).
 export async function fetchRatingHistory(username) {
-  const res = await ok(await fetch(`${API}/api/user/${encodeURIComponent(username)}/rating-history`, { headers: headers() }), `El usuario ${username}`)
+  const res = await ok(await get(`${API}/api/user/${encodeURIComponent(username)}/rating-history`, { headers: headers() }), `El usuario ${username}`)
   return res.json()
 }
 
 // Puzzle Storm: mejor sesión de cada día y récords (público).
 export async function fetchStorm(username, days = 365) {
-  const res = await ok(await fetch(`${API}/api/storm/dashboard/${encodeURIComponent(username)}?days=${days}`, { headers: headers() }), `El usuario ${username}`)
+  const res = await ok(await get(`${API}/api/storm/dashboard/${encodeURIComponent(username)}?days=${days}`, { headers: headers() }), `El usuario ${username}`)
   return res.json()
 }
 
 // Puzzles resueltos uno a uno. Privado: necesita el token del propio jugador con el permiso puzzle:read.
 export async function fetchPuzzleActivity(token, { max = 3000, onProgress } = {}) {
-  const res = await fetch(`${API}/api/puzzle/activity?max=${max}`, { headers: headers({ Accept: 'application/x-ndjson' }, token) })
+  const res = await get(`${API}/api/puzzle/activity?max=${max}`, { headers: headers({ Accept: 'application/x-ndjson' }, token) })
   if (res.status === 401 || res.status === 403) throw new Error('El token de puzzles no es válido o no tiene el permiso "Leer la actividad de puzzles".')
   await ok(res, 'Los puzzles')
   return readNdjson(res, (x) => x, onProgress)

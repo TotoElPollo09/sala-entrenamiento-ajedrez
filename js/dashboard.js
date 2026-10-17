@@ -99,8 +99,12 @@ async function load() {
   try {
     data = await loadAll((t) => { if (!data) take.textContent = t })
     const notes = root.querySelector('#d-notes')
-    notes.textContent = data.notes.join(' ')
-    notes.hidden = !data.notes.length
+    const fails = data.notes.filter((n) => !n.startsWith('Para ver'))
+    const tips = data.notes.filter((n) => n.startsWith('Para ver'))
+    notes.textContent = tips.join(' ')
+    notes.hidden = !tips.length
+    err.textContent = fails.length ? `No se pudo leer de Lichess: ${fails.join(' ')}` : ''
+    err.hidden = !fails.length
     draw()
   } catch (e) {
     err.textContent = e.message

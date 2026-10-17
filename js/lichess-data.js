@@ -146,25 +146,31 @@ export async function loadAll(onStatus = () => {}) {
   const out = { ratings: [], partidas: [], puzzles: [], storm: [], notes: [] }
   const players = settings.players.filter((p) => p.lichess)
   if (!players.length) throw new Error('Escribe vuestros usuarios de Lichess en Ajustes para ver el dashboard.')
+  // Cada fuente va por separado: si una falla, el resto se muestra igual y se avisa de cuál falló.
+  const step = async (label, fn) => {
+    try { await fn() } catch (e) { out.notes.push(`${label}: ${e.message}`); out.failed += 1 }
+  }
+  out.failed = 0
   for (const p of players) {
     const u = p.lichess
     onStatus(`Leyendo el rating de ${u}…`)
-    out.ratings.push(...ratingRows(p.name, await fresh(`rating:${u.toLowerCase()}`, () => fetchRatingHistory(u))))
+    await step(`Rating de ${p.name}`, async () => out.ratings.push(...ratingRows(p.name, await fresh(`rating:${u.toLowerCase()}`, () => fetchRatingHistory(u)))))
     onStatus(`Leyendo Puzzle Storm de ${u}…`)
-    out.storm.push(...stormRows(p.name, await fresh(`storm:${u.toLowerCase()}`, () => fetchStorm(u))))
+    await step(`Puzzle Storm de ${p.name}`, async () => out.storm.push(...stormRows(p.name, await fresh(`storm:${u.toLowerCase()}`, () => fetchStorm(u)))))
     onStatus(`Descargando partidas de ${u}…`)
-    const games = await getGames(u, (n) => onStatus(`Descargando partidas nuevas de ${u}: ${n}…`))
-    out.partidas.push(...gameRows(p.name, u, games))
+    await step(`Partidas de ${p.name}`, async () => {
+      const games = await getGames(u, (n) => onStatus(`Descargando partidas nuevas de ${u}: ${n}…`))
+      out.partidas.push(...gameRows(p.name, u, games))
+    })
     if (p.puzzleToken) {
       onStatus(`Leyendo los puzzles de ${u}…`)
-      try {
-        out.puzzles.push(...puzzleRows(p.name, await getPuzzles(p.puzzleToken, u)))
-      } catch (e) {
-        out.notes.push(`Puzzles de ${p.name}: ${e.message}`)
-      }
+      await step(`Puzzles de ${p.name}`, async () => out.puzzles.push(...puzzleRows(p.name, await getPuzzles(p.puzzleToken, u))))
     } else {
       out.notes.push(`Para ver los puzzles de ${p.name} uno a uno, pega su token de puzzles en Ajustes.`)
     }
+  }
+  if (out.failed && !out.ratings.length && !out.storm.length && !out.partidas.length) {
+    throw new Error(`No se pudo leer nada de Lichess. ${out.notes.filter((n) => !n.startsWith('Para ver')).join(' ')}`)
   }
   return out
 }
