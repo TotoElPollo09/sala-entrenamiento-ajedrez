@@ -12,7 +12,8 @@ function headers(extra = {}, token = settings.lichessToken) {
 // fetch con un mensaje en español cuando no hay conexión con Lichess.
 async function get(url, opts) {
   try {
-    return await fetch(url, opts)
+    // no-store: que el navegador no reutilice una respuesta vieja de Lichess.
+    return await fetch(url, { cache: 'no-store', ...opts })
   } catch {
     throw new Error('no hay conexión con Lichess (revisa internet o algún bloqueador de anuncios).')
   }

@@ -1,7 +1,7 @@
 // Datos de entrenamiento leídos directamente de Lichess, con caché en el navegador.
 // Devuelve las mismas filas que antes daba la hoja de Google, para que el dashboard no cambie.
 import { settings } from './store.js'
-import { fetchUserGames, fetchRatingHistory, fetchStorm, fetchPuzzleActivity } from './lichess.js'
+import { fetchUser, fetchUserGames, fetchRatingHistory, fetchStorm, fetchPuzzleActivity } from './lichess.js'
 
 // ---- caché (IndexedDB, clave → valor) ----
 let dbp = null
@@ -77,7 +77,7 @@ async function getPuzzles(token, username, refresh) {
   const key = `puzzles:${username.toLowerCase()}`
   const cached = (await cacheGet(key)) || []
   if (!refresh && cached.length) return cached
-  const fresh = await fetchPuzzleActivity(token, { max: cached.length ? 500 : 5000 })
+  const fresh = await fetchPuzzleActivity(token, { max: 5000 })
   const keyOf = (p) => `${p.puzzle?.id}|${p.date}`
   const seen = new Set(cached.map(keyOf))
   const all = [...fresh.filter((p) => !seen.has(keyOf(p))), ...cached].sort((a, b) => b.date - a.date)
@@ -153,7 +153,7 @@ function puzzleRows(name, acts) {
 // notes recoge avisos que no impiden mostrar el resto (p. ej. falta el token de puzzles).
 // refresh: true pide a Lichess lo nuevo (botón Actualizar); si no, se muestra lo ya descargado.
 export async function loadAll(onStatus = () => {}, { refresh = false } = {}) {
-  const out = { ratings: [], partidas: [], puzzles: [], storm: [], notes: [], updated: null }
+  const out = { ratings: [], partidas: [], puzzles: [], storm: [], notes: [], updated: null, profiles: {}, summary: [] }
   const from = historyFrom()
   const fromMs = Date.parse(from + 'T00:00:00Z')
   const stormDays = Math.min(365, Math.ceil((Date.now() - fromMs) / 86400000) + 1)
@@ -167,8 +167,20 @@ export async function loadAll(onStatus = () => {}, { refresh = false } = {}) {
   out.failed = 0
   for (const p of players) {
     const u = p.lichess
+    const n0 = { r: out.ratings.length, g: out.partidas.length, s: out.storm.length, p: out.puzzles.length }
     onStatus(`Leyendo el rating de ${u}…`)
     await step(`Rating de ${p.name}`, async () => out.ratings.push(...since(ratingRows(p.name, await fresh(`rating:${u.toLowerCase()}`, () => fetchRatingHistory(u), refresh)))))
+    // El perfil da el rating actual exacto y los totales de puzzles y Storm de Lichess.
+    await step(`Perfil de ${p.name}`, async () => {
+      const prof = await fresh(`profile:${u.toLowerCase()}`, () => fetchUser(u), refresh)
+      const perfs = prof.perfs || {}
+      const day = isoDay(prof.seenAt || Date.now())
+      for (const mod of ['bullet', 'blitz', 'rapid', 'classical', 'puzzle']) {
+        const pf = perfs[mod]
+        if (pf?.games && pf.rating) out.ratings.push({ Jugador: p.name, Fecha: day, Modalidad: mod, Rating: pf.rating })
+      }
+      out.profiles[p.name] = { puzzles: perfs.puzzle?.games ?? null, stormRuns: perfs.storm?.runs ?? null, stormRecord: perfs.storm?.score ?? null }
+    })
     onStatus(`Leyendo Puzzle Storm de ${u}…`)
     await step(`Puzzle Storm de ${p.name}`, async () => out.storm.push(...since(stormRows(p.name, await fresh(`storm:${u.toLowerCase()}`, () => fetchStorm(u, stormDays), refresh)))))
     onStatus(`Descargando partidas de ${u}…`)
@@ -182,6 +194,9 @@ export async function loadAll(onStatus = () => {}, { refresh = false } = {}) {
     } else {
       out.notes.push(`Para ver los puzzles de ${p.name} uno a uno, pega su token de puzzles en Ajustes.`)
     }
+    const mine = out.storm.slice(n0.s)
+    out.summary.push(`${p.name} (${u}): ${new Set(out.ratings.slice(n0.r).map((r) => r.Modalidad)).size} ratings, ${out.partidas.length - n0.g} partidas, `
+      + `${mine.reduce((a, r) => a + (r['Sesiones del día'] || 0), 0)} sesiones de Storm en ${mine.length} días, ${out.puzzles.length - n0.p} puzzles.`)
   }
   // Fecha de la última actualización: se guarda solo si alguna consulta llegó a Lichess bien.
   const prev = await cacheGet('updated')

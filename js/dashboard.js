@@ -102,7 +102,7 @@ async function load({ refresh = false } = {}) {
     const fails = data.notes.filter((n) => !n.startsWith('Para ver'))
     const tips = data.notes.filter((n) => n.startsWith('Para ver'))
     const when = data.updated ? `Datos desde el ${fDay(new Date(historyFrom() + 'T00:00:00Z'))}, actualizados el ${new Date(data.updated).toLocaleString('es', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}. Pulsa Actualizar para traer lo nuevo de Lichess.` : ''
-    notes.textContent = [when, ...tips].filter(Boolean).join(' ')
+    notes.textContent = [when, `Leído de Lichess: ${data.summary.join(' ')}`, ...tips].filter(Boolean).join(' ')
     notes.hidden = !notes.textContent
     err.textContent = fails.length ? `No se pudo leer de Lichess: ${fails.join(' ')}` : ''
     err.hidden = !fails.length
@@ -151,8 +151,11 @@ function draw() {
     const sub = r.fecha === r.fechaPrevia ? '±0' : `${signed(r.cambio)} desde ${fDay(new Date(r.fechaPrevia.slice(0, 10) + 'T00:00:00Z'))}`
     return tile(MOD[mod] === 'Puzzles' ? 'Rating de puzzles' : MOD[mod], r.actual, sub, r.cambio > 0 ? 'up' : r.cambio < 0 ? 'down' : '')
   })
-  tiles.push(tile('Récord Puzzle Storm', sr ? sr.record : '—', sr && sr.media30 != null ? `Media últimos 30 días: ${sr.media30.toFixed(1)}` : 'Sin sesiones recientes'))
-  tiles.push(tile('Puzzles acertados', pr ? pct(pr.precision) : '—', pr ? `${pr.total} puzzles registrados` : 'Sin puzzles registrados'))
+  const runs = data.storm.filter((r) => r.Jugador === player).reduce((a, r) => a + (r['Sesiones del día'] || 0), 0)
+  tiles.push(tile('Récord Puzzle Storm', sr ? sr.record : '—', sr ? `${runs} sesiones en ${sd.length} días` + (sr.media30 != null ? ` · media 30 días ${sr.media30.toFixed(1)}` : '') : 'Sin sesiones desde el 1 de enero'))
+  const prof = data.profiles[player]
+  if (pr) tiles.push(tile('Puzzles acertados', pct(pr.precision), `${d3.format(',')(pr.total)} puzzles desde el 1 de enero`))
+  else tiles.push(tile('Puzzles jugados', prof?.puzzles != null ? d3.format(',')(prof.puzzles) : '—', 'Total en Lichess. Pega el token en Ajustes para ver los de este año'))
   root.querySelector('#d-tiles').innerHTML = tiles.join('')
 
   drawCharts()
