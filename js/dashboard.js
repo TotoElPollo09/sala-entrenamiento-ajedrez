@@ -1,6 +1,6 @@
-// Página Dashboard: métricas de la hoja de entrenamiento.
+// Página Dashboard: métricas de entrenamiento leídas de Lichess.
 /* global d3 */
-import { loadAll } from './sheet.js'
+import { loadAll } from './lichess-data.js'
 import * as M from './metrics.js'
 import { lineChart, fDay, SERIES } from './charts.js'
 import { settings, emit, onSettingsChange } from './store.js'
@@ -14,7 +14,7 @@ const HTML = `
 <div class="page-head">
   <div>
     <h1>Dashboard</h1>
-    <p class="lead" id="d-take">Cargando tu hoja de entrenamiento…</p>
+    <p class="lead" id="d-take">Leyendo vuestros datos de Lichess…</p>
   </div>
   <div class="row gap">
     <div class="seg" role="group" aria-label="Jugador" id="d-players"></div>
@@ -22,6 +22,7 @@ const HTML = `
   </div>
 </div>
 <div class="alert" id="d-error" hidden></div>
+<p class="note" id="d-notes" hidden></p>
 <div class="tiles" id="d-tiles"></div>
 <section class="card" id="d-rating-card">
   <h3>Evolución del rating</h3>
@@ -92,13 +93,21 @@ export function init(el) {
 async function load() {
   const err = root.querySelector('#d-error')
   err.hidden = true
+  const take = root.querySelector('#d-take')
+  const btn = root.querySelector('#d-reload')
+  btn.disabled = true
   try {
-    data = await loadAll()
+    data = await loadAll((t) => { if (!data) take.textContent = t })
+    const notes = root.querySelector('#d-notes')
+    notes.textContent = data.notes.join(' ')
+    notes.hidden = !data.notes.length
     draw()
   } catch (e) {
     err.textContent = e.message
     err.hidden = false
     root.querySelector('#d-take').textContent = 'No se pudieron cargar los datos.'
+  } finally {
+    btn.disabled = false
   }
 }
 
@@ -149,7 +158,9 @@ function draw() {
   tbox.replaceChildren()
   root.querySelector('#d-temas-note').textContent = temas.length
     ? 'Temas con al menos 10 intentos, de peor a mejor. Los de arriba son los que más conviene entrenar.'
-    : `La hoja no tiene puzzles de ${player}. Falta su token de Lichess con permiso de puzzles en la sincronización.`
+    : settings.players.find((p) => p.name === player)?.puzzleToken
+      ? `${player} aún no tiene temas con 10 intentos.`
+      : `Pega el token de puzzles de ${player} en Ajustes para ver su acierto por tema.`
   for (const t of temas) {
     const row = document.createElement('div'); row.className = 'bar'
     const n = document.createElement('span'); n.className = 'bn'; n.textContent = `${temaName(t.tema)} · ${t.intentos}`

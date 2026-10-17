@@ -3,9 +3,9 @@ import { settings } from './store.js'
 
 const API = 'https://lichess.org'
 
-function headers(extra = {}) {
+function headers(extra = {}, token = settings.lichessToken) {
   const h = { ...extra }
-  if (settings.lichessToken) h.Authorization = `Bearer ${settings.lichessToken}`
+  if (token) h.Authorization = `Bearer ${token}`
   return h
 }
 
@@ -23,14 +23,21 @@ export async function fetchUser(username) {
 }
 
 // Descarga partidas de un usuario como objetos compactos. onProgress(n) se llama mientras llegan.
-export async function fetchUserGames(username, { max = 300, perfType = '', color = '', rated = '', signal, onProgress } = {}) {
-  const p = new URLSearchParams({ max: String(max), moves: 'true', opening: 'true', clocks: 'false', evals: 'false', pgnInJson: 'false' })
+export async function fetchUserGames(username, { max = 300, since = 0, perfType = '', color = '', rated = '', signal, onProgress } = {}) {
+  const p = new URLSearchParams({ moves: 'true', opening: 'true', clocks: 'false', evals: 'false', pgnInJson: 'false' })
+  if (max) p.set('max', String(max))
+  if (since) p.set('since', String(since))
   if (perfType) p.set('perfType', perfType)
   if (color) p.set('color', color)
   if (rated) p.set('rated', rated)
   const res = await ok(await fetch(`${API}/api/games/user/${encodeURIComponent(username)}?${p}`, {
     headers: headers({ Accept: 'application/x-ndjson' }), signal,
   }), `El usuario ${username}`)
+  return readNdjson(res, fromLichess, onProgress)
+}
+
+// Lee una respuesta NDJSON línea a línea.
+async function readNdjson(res, map, onProgress) {
   const reader = res.body.getReader()
   const dec = new TextDecoder()
   let buf = ''
@@ -43,12 +50,32 @@ export async function fetchUserGames(username, { max = 300, perfType = '', color
     while ((i = buf.indexOf('\n')) >= 0) {
       const line = buf.slice(0, i).trim()
       buf = buf.slice(i + 1)
-      if (line) games.push(fromLichess(JSON.parse(line)))
+      if (line) games.push(map(JSON.parse(line)))
     }
     onProgress?.(games.length)
   }
-  if (buf.trim()) games.push(fromLichess(JSON.parse(buf)))
+  if (buf.trim()) games.push(map(JSON.parse(buf)))
   return games
+}
+
+// Historial de rating por modalidad (público).
+export async function fetchRatingHistory(username) {
+  const res = await ok(await fetch(`${API}/api/user/${encodeURIComponent(username)}/rating-history`, { headers: headers() }), `El usuario ${username}`)
+  return res.json()
+}
+
+// Puzzle Storm: mejor sesión de cada día y récords (público).
+export async function fetchStorm(username, days = 365) {
+  const res = await ok(await fetch(`${API}/api/storm/dashboard/${encodeURIComponent(username)}?days=${days}`, { headers: headers() }), `El usuario ${username}`)
+  return res.json()
+}
+
+// Puzzles resueltos uno a uno. Privado: necesita el token del propio jugador con el permiso puzzle:read.
+export async function fetchPuzzleActivity(token, { max = 3000, onProgress } = {}) {
+  const res = await fetch(`${API}/api/puzzle/activity?max=${max}`, { headers: headers({ Accept: 'application/x-ndjson' }, token) })
+  if (res.status === 401 || res.status === 403) throw new Error('El token de puzzles no es válido o no tiene el permiso "Leer la actividad de puzzles".')
+  await ok(res, 'Los puzzles')
+  return readNdjson(res, (x) => x, onProgress)
 }
 
 // Formato común de partida para toda la web (igual que las de la base local).
@@ -58,6 +85,10 @@ export function fromLichess(g) {
   const result = g.winner === 'white' ? '1-0' : g.winner === 'black' ? '0-1' : (g.status === 'draw' || g.status === 'stalemate') ? '½-½' : (g.status === 'started' ? '*' : '½-½')
   return {
     id: `lichess:${g.id}`,
+    ts: g.createdAt,
+    whiteDiff: w.ratingDiff ?? null,
+    blackDiff: b.ratingDiff ?? null,
+    rated: !!g.rated,
     source: 'lichess',
     url: `https://lichess.org/${g.id}`,
     white: w.user?.name || (w.aiLevel ? `Stockfish nivel ${w.aiLevel}` : 'Anónimo'),

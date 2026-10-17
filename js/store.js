@@ -2,11 +2,11 @@
 const KEY = 'ajedrez-web:ajustes'
 
 const DEFAULTS = {
-  sheetId: '', // se escribe en Ajustes; no se guarda en el código
   players: [
-    { name: 'Johan', lichess: '' },
-    { name: 'Mari', lichess: '' },
+    { name: 'Johan', lichess: 'totoelpollo', puzzleToken: '' },
+    { name: 'Mari', lichess: 'genio3015', puzzleToken: '' },
   ],
+  historyFrom: '2026-01-01', // partidas que se descargan para el dashboard
   lichessToken: '',
   engineDepth: 18,
   engineLines: 3,
@@ -15,7 +15,10 @@ const DEFAULTS = {
 export function loadSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) || '{}')
-    return { ...DEFAULTS, ...saved, players: saved.players || DEFAULTS.players }
+    // Ajustes guardados antes de leer de Lichess pueden tener el usuario vacío: se rellena con el de siempre.
+    const players = (saved.players || DEFAULTS.players).map((p, i) => ({ ...DEFAULTS.players[i], ...p, lichess: p.lichess || DEFAULTS.players[i]?.lichess || '' }))
+    delete saved.sheetId
+    return { ...structuredClone(DEFAULTS), ...saved, players }
   } catch {
     return structuredClone(DEFAULTS)
   }
