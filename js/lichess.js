@@ -128,3 +128,23 @@ export async function fetchExplorer(fen, db = 'masters', { speeds = 'blitz,rapid
     moves: (j.moves || []).map((m) => ({ san: m.san, n: m.white + m.draws + m.black, w: m.white, d: m.draws, l: m.black })),
   }
 }
+
+// Explorador completo, como el de lichess.org. db: 'masters', 'lichess' o 'player'.
+// params se pasa tal cual (speeds, ratings, since, until, player, color…). Devuelve el JSON de Lichess.
+export async function explorerQuery(db, params, { signal } = {}) {
+  const p = new URLSearchParams({ moves: '15', ...params })
+  const res = await get(`https://explorer.lichess.ovh/${db}?${p}`, { headers: headers(), signal })
+  if (res.status === 401) throw new Error('El explorador de Lichess pide iniciar sesión: pega un token de Lichess en Ajustes (sin marcar permisos).')
+  await ok(res, 'El explorador')
+  if (db !== 'player') return res.json()
+  // El de jugador envía versiones cada vez más completas, una por línea: vale la última.
+  const lines = (await res.text()).trim().split('\n').filter(Boolean)
+  return lines.length ? JSON.parse(lines[lines.length - 1]) : { moves: [] }
+}
+
+// PGN de una partida del explorador (maestros o Lichess).
+export async function fetchExplorerPgn(id, db) {
+  const url = db === 'masters' ? `https://explorer.lichess.ovh/master/pgn/${id}` : `${API}/game/export/${id}?clocks=false&evals=false`
+  const res = await ok(await get(url, { headers: headers({ Accept: 'application/x-chess-pgn' }) }), 'La partida')
+  return res.text()
+}

@@ -5,6 +5,7 @@ import { sharedEngine, whitePov, formatScore } from './engine.js'
 import { settings, on } from './store.js'
 import { lineChart } from './charts.js'
 import { gameToPgn } from './db.js'
+import { ExplorerPanel } from './explorer-panel.js'
 
 const HTML = `
 <div class="page-head"><div><h1>Análisis</h1><p class="lead" id="a-title">Mueve las piezas o pega un PGN. Stockfish analiza cada posición.</p></div></div>
@@ -30,6 +31,7 @@ const HTML = `
       <p class="note" id="a-engine-status">Cargando motor…</p>
       <ol class="pv-list" id="a-lines"></ol>
     </section>
+    <section class="card" id="a-explorer"></section>
     <section class="card">
       <h3>Jugadas</h3>
       <div class="moves" id="a-moves"></div>
@@ -48,7 +50,7 @@ const HTML = `
   </div>
 </div>`
 
-let root, board, engine
+let root, board, engine, explorer
 let annotations = [] // por medio-jugada: {cls, mark}
 let gameInfo = null
 let evals = [] // evaluación (peones, blancas) por posición, del análisis completo
@@ -75,6 +77,10 @@ export function init(el) {
   root.querySelector('#a-lines').addEventListener('click', (e) => {
     const li = e.target.closest('[data-move]')
     if (li) board.play(li.dataset.move)
+  })
+  explorer = new ExplorerPanel(root.querySelector('#a-explorer'), {
+    onMove: (san) => board.play(san),
+    onGame: (pgn) => { root.querySelector('#a-pgn').value = pgn; loadText() },
   })
   on('open-game', (g) => openGame(g))
 }
@@ -162,6 +168,7 @@ let pending = 0
 async function changed() {
   renderMoves()
   if (root.closest('[hidden]')) return
+  explorer?.update(board.fen)
   const on = root.querySelector('#a-engine-on').checked
   const list = root.querySelector('#a-lines')
   const status = root.querySelector('#a-engine-status')

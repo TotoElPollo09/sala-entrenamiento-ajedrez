@@ -157,6 +157,19 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .games li { padding: 5px 8px; border-left: 3px solid var(--line); cursor: pointer; }
 .games li:hover { background: color-mix(in srgb, var(--accent) 7%, var(--panel)); }
 .games li.win { border-left-color: var(--good); } .games li.loss { border-left-color: var(--bad); } .games li.draw { border-left-color: var(--muted-mark); }
+.ex-tabs { display: flex; } .ex-tabs button { flex: 1; }
+.ex-filters { display: grid; gap: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; }
+.ex-filters > div { display: grid; gap: 6px; }
+.ex-filters > div.row { display: flex; }
+.ex-filters > [hidden] { display: none !important; }
+.ex-label { font-size: 13px; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chips button { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px; font-size: 12px; cursor: pointer; font-family: var(--font-mono); }
+.chips button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.ex-sub { margin: 4px 0 0; font-size: 13px; color: var(--muted); font-weight: 500; }
+.wdl.labeled { height: 18px; font-size: 11px; line-height: 18px; font-family: var(--font-mono); }
+.wdl.labeled > div { text-align: center; overflow: hidden; white-space: nowrap; }
+.wdl.labeled .wh { color: #222; } .wdl.labeled .bl { color: #eee; } .wdl.labeled .d { color: var(--bg); }
 .rep li { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--line); }
 .drop { display: grid; place-items: center; border: 2px dashed var(--line); border-radius: var(--radius); padding: 28px; cursor: pointer; color: var(--muted); text-align: center; }
 .drop.over { border-color: var(--accent); color: var(--fg); }
@@ -172,3 +185,4 @@ button, input, select, textarea { font: inherit; color: inherit; }
   .bar { grid-template-columns: 6.5rem 1fr 2.8rem; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+.ex-moves td.n { white-space: nowrap; }
