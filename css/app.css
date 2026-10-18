@@ -186,3 +186,4 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 .ex-moves td.n { white-space: nowrap; }
+.games li.on { background: color-mix(in srgb, var(--accent) 14%, var(--panel)); border-left-color: var(--accent); }

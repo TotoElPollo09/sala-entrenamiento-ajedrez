@@ -1,6 +1,6 @@
 // Página Análisis: tablero libre con Stockfish, carga de PGN y análisis de partida completa.
 /* global d3 */
-import { StudyBoard, uciToSan, numberLine, ARROW_TYPE, Chess } from './board.js'
+import { StudyBoard, uciToSan, numberLine, ARROW_TYPE, Chess, fenKey } from './board.js'
 import { sharedEngine, whitePov, formatScore } from './engine.js'
 import { settings, on } from './store.js'
 import { lineChart } from './charts.js'
@@ -80,7 +80,7 @@ export function init(el) {
   })
   explorer = new ExplorerPanel(root.querySelector('#a-explorer'), {
     onMove: (san) => board.play(san),
-    onGame: (pgn) => { root.querySelector('#a-pgn').value = pgn; loadText() },
+    onGame: openPgn,
   })
   on('open-game', (g) => openGame(g))
 }
@@ -90,7 +90,7 @@ export function shown() { changed() }
 
 function setTitle() {
   root.querySelector('#a-title').textContent = gameInfo
-    ? `${gameInfo.white}${gameInfo.whiteElo ? ` (${gameInfo.whiteElo})` : ''} – ${gameInfo.black}${gameInfo.blackElo ? ` (${gameInfo.blackElo})` : ''} · ${gameInfo.result || ''} · ${[gameInfo.event, gameInfo.date].filter(Boolean).join(', ')}`
+    ? `${gameInfo.white}${gameInfo.whiteElo ? ` (${gameInfo.whiteElo})` : ''} – ${gameInfo.black}${gameInfo.blackElo ? ` (${gameInfo.blackElo})` : ''} · ${gameInfo.result || ''} · ${[gameInfo.event, gameInfo.date].filter((x) => x && !/^[?.\s]+$/.test(x)).join(', ')}`
     : 'Mueve las piezas o pega un PGN. Stockfish analiza cada posición.'
 }
 
@@ -105,6 +105,16 @@ export function openGame(g, { ply = 0, orientation } = {}) {
   if (orientation) board.setOrientation(orientation)
   board.goto(ply)
   setTitle()
+}
+
+// Partida del explorador: se carga entera y el tablero se queda en la posición que se estaba mirando.
+function openPgn(pgn) {
+  const here = fenKey(board.fen)
+  root.querySelector('#a-pgn').value = pgn
+  if (!loadText()) throw new Error('No se pudo leer esa partida.')
+  const ply = board.positions.findIndex((f) => fenKey(f) === here)
+  board.goto(ply >= 0 ? ply : 0)
+  root.querySelector('.board-col').scrollIntoView({ block: 'nearest', behavior: 'smooth' })
 }
 
 function loadText() {
@@ -125,8 +135,10 @@ function loadText() {
     }
     annotations = []; evals = []; root.querySelector('#a-graph').replaceChildren()
     setTitle(); changed()
+    return true
   } catch (e) {
     msg.textContent = 'No se pudo leer: revisa que sea un PGN o FEN válido.'
+    return false
   }
 }
 

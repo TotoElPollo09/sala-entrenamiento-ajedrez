@@ -218,6 +218,8 @@ export class ExplorerPanel {
     try {
       const pgn = await fetchExplorerPgn(li.dataset.id, this.p.db)
       status.textContent = prev
+      this.el.querySelectorAll('.ex-games li.on').forEach((x) => x.classList.remove('on'))
+      li.classList.add('on')
       this.onGame(pgn, JSON.parse(li.dataset.info))
     } catch (e) {
       status.textContent = e.message

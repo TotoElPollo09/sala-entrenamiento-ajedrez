@@ -143,8 +143,17 @@ export async function explorerQuery(db, params, { signal } = {}) {
 }
 
 // PGN de una partida del explorador (maestros o Lichess).
+// Las de maestros se piden al explorador y, si no responde, a lichess.org, que también las tiene.
 export async function fetchExplorerPgn(id, db) {
-  const url = db === 'masters' ? `https://explorer.lichess.ovh/master/pgn/${id}` : `${API}/game/export/${id}?clocks=false&evals=false`
-  const res = await ok(await get(url, { headers: headers({ Accept: 'application/x-chess-pgn' }) }), 'La partida')
-  return res.text()
+  const h = { headers: headers({ Accept: 'application/x-chess-pgn' }) }
+  const urls = db === 'masters' ? [`https://explorer.lichess.ovh/masters/pgn/${id}`, `${API}/game/export/${id}?clocks=false&evals=false`] : [`${API}/game/export/${id}?clocks=false&evals=false`]
+  let last
+  for (const url of urls) {
+    try {
+      const res = await get(url, h)
+      if (res.ok) { const t = await res.text(); if (t.trim()) return t }
+      last = new Error(res.status === 401 ? 'Lichess pide el token de Ajustes para abrir la partida.' : `No se pudo abrir la partida (Lichess respondió ${res.status}).`)
+    } catch (e) { last = e }
+  }
+  throw last
 }
