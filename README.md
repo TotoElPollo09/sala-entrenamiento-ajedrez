@@ -8,7 +8,7 @@ Web de entrenamiento de ajedrez para Johan y Mari. No necesita servidor propio n
 | Análisis | Tablero con Stockfish 18 (3 líneas, barra de evaluación, flecha de la mejor jugada). Carga PGN o FEN y analiza la partida entera marcando imprecisiones (?!), errores (?) y errores graves (??). |
 | Aperturas | Árbol de jugadas de tus partidas de Lichess, de un rival, de tu base local o del explorador de Lichess, con tus puntos en cada jugada. Repertorio guardado en el navegador. |
 | Rivales | Escribe un usuario de Lichess (o un nombre de tu base local): rating, puntos con cada color, aperturas por color, primeras jugadas y todas sus partidas para abrirlas en Análisis. |
-| Base de datos | Importa archivos PGN (partidas oficiales FIDE, TWIC, torneos) y busca por jugador, torneo o apertura. |
+| Base de datos | Importa archivos PGN (partidas oficiales FIDE, TWIC, torneos o una base de ChessBase exportada a PGN) y busca por jugador, torneo o apertura. Con bases de millones de partidas, el filtro de importación (jugadores, ECO, Elo mínimo, años) guarda solo lo que vas a estudiar. |
 | Ajustes | Usuarios de Lichess, ID de la hoja, token de Lichess y profundidad de Stockfish. |
 
 ## Antes de empezar

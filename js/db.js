@@ -65,13 +65,15 @@ export function gamesOfPlayer(name, limit = 5000) {
 
 // Divide un archivo PGN con muchas partidas y las convierte al formato común.
 // No valida las jugadas aquí (los archivos de FIDE/TWIC tienen miles de partidas); se validan al abrirlas.
-export function parsePgnFile(text, sourceName = 'PGN') {
+// keep(headers) decide antes de leer las jugadas si la partida se guarda (para filtrar bases enormes).
+export function parsePgnFile(text, sourceName = 'PGN', keep = null) {
   const games = []
   const chunks = text.replace(/\r/g, '').split(/\n(?=\[Event\s)/)
   for (const chunk of chunks) {
     if (!chunk.trim()) continue
     const headers = {}
     for (const m of chunk.matchAll(/^\[(\w+)\s+"((?:[^"\\]|\\.)*)"\]\s*$/gm)) headers[m[1]] = m[2]
+    if (keep && !keep(headers)) continue
     const body = chunk.replace(/^\[.*\]\s*$/gm, '')
     const moves = sanTokens(body)
     if (!headers.White && !moves.length) continue
@@ -130,4 +132,61 @@ export function gameToPgn(g) {
   const head = Object.entries(tags).map(([k, v]) => `[${k} "${String(v).replace(/"/g, '\\"')}"]`).join('\n')
   const body = g.moves.map((m, i) => (i % 2 === 0 ? `${i / 2 + 1}. ` : '') + m).join(' ')
   return `${head}\n\n${body} ${tags.Result}\n`
+}
+
+// Lee un archivo PGN por trozos, sin cargarlo entero en memoria (sirve para bases de millones de partidas).
+// onBatch(games) recibe las partidas que pasan el filtro; onProgress({ bytes, total, scanned }) informa del avance.
+// Devuelve false si se canceló con signal.
+export async function streamPgnFile(file, { keep, onBatch, onProgress, signal, chunkSize = 4 << 20 } = {}) {
+  const dec = new TextDecoder()
+  let buf = '', bytes = 0, scanned = 0
+  const flush = async (text) => {
+    scanned += (text.match(/^\[Event\s/gm) || []).length
+    const games = parsePgnFile(text, file.name, keep)
+    if (games.length) await onBatch(games)
+  }
+  for (let pos = 0; pos < file.size; pos += chunkSize) {
+    if (signal?.aborted) return false
+    const piece = new Uint8Array(await file.slice(pos, pos + chunkSize).arrayBuffer())
+    bytes = Math.min(file.size, pos + chunkSize)
+    buf += dec.decode(piece, { stream: bytes < file.size })
+    // Se procesa hasta el último comienzo de partida; el resto espera al siguiente trozo.
+    const cut = buf.lastIndexOf('\n[Event ')
+    if (cut > 0) { await flush(buf.slice(0, cut)); buf = buf.slice(cut + 1) }
+    onProgress?.({ bytes, total: file.size, scanned })
+    await new Promise((r) => setTimeout(r, 0)) // deja respirar a la página
+  }
+  if (buf.trim()) await flush(buf)
+  onProgress?.({ bytes: file.size, total: file.size, scanned })
+  return true
+}
+
+// Construye el filtro de importación a partir de lo que se escribe en la página.
+// eco admite códigos sueltos o prefijos (B9, C42) y rangos (B90-B99), separados por comas.
+export function importFilter({ player = '', minElo = 0, eloBoth = true, fromYear = 0, toYear = 0, eco = '' } = {}) {
+  const names = player.split(',').map((x) => x.trim().toLowerCase()).filter(Boolean)
+  const ecos = eco.toUpperCase().split(/[,\s]+/).filter(Boolean).map((t) => {
+    const [a, b] = t.split('-')
+    return b ? (c) => c >= a && c <= b : (c) => c.startsWith(a)
+  })
+  if (!names.length && !minElo && !fromYear && !toYear && !ecos.length) return null
+  return (h) => {
+    if (names.length) {
+      const w = (h.White || '').toLowerCase(), bl = (h.Black || '').toLowerCase()
+      if (!names.some((n) => w.includes(n) || bl.includes(n))) return false
+    }
+    if (minElo) {
+      const we = Number(h.WhiteElo) || 0, be = Number(h.BlackElo) || 0
+      if (eloBoth ? Math.min(we, be) < minElo : Math.max(we, be) < minElo) return false
+    }
+    if (fromYear || toYear) {
+      const y = Number((h.Date || '').slice(0, 4))
+      if (!y || (fromYear && y < fromYear) || (toYear && y > toYear)) return false
+    }
+    if (ecos.length) {
+      const c = (h.ECO || '').toUpperCase()
+      if (!c || !ecos.some((f) => f(c))) return false
+    }
+    return true
+  }
 }

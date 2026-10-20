@@ -187,3 +187,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 .ex-moves td.n { white-space: nowrap; }
 .games li.on { background: color-mix(in srgb, var(--accent) 14%, var(--panel)); border-left-color: var(--accent); }
+.b-filter { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 10px; }
+.b-filter[open] { padding-bottom: 14px; }
+.b-filter summary { cursor: pointer; font-weight: 500; }
+.b-filter > * + * { margin-top: 10px; }
+.progress { height: 6px; background: var(--grid); border-radius: 3px; overflow: hidden; }
+.progress > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
