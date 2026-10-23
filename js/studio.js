@@ -13,6 +13,7 @@ import { ExplorerPanel } from './explorer-panel.js'
 import { countGames, getGame } from './db.js'
 import { GameTree, NAGS, parsePgn, splitPgn, treeFromGame } from './studio-tree.js'
 import { loadIndex, resetIndex, queryLine, continuation } from './studio-index.js'
+import { Dock } from './dock.js'
 
 const ASSETS = new URL('../vendor/cm-chessboard/assets/', import.meta.url).href
 const KEY = 'ajedrez-web:studio'
@@ -36,60 +37,56 @@ const svg = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${I[k]}</svg>`
 const tool = (act, icon, label) => `<button type="button" class="st-tb" data-act="${act}" title="${label}" aria-label="${label}">${svg(icon)}</button>`
 
 const HTML = `
-<div class="st">
-  <div class="st-col">
-    <section class="sp sp-board">
-      <div class="sp-h st-tabs" role="tablist" aria-label="Tableros"></div>
-      <div class="st-boardbox"><div class="board" id="st-board"></div></div>
-    </section>
-    <section class="sp sp-notation">
-      <div class="sp-h"><span class="sp-t">${svg('list')}Notación</span><span class="st-game" id="st-game"></span></div>
-      <div class="st-tools">
-        ${tool('first', 'first', 'Inicio')}${tool('prev', 'prev', 'Anterior')}${tool('next', 'next', 'Siguiente')}${tool('last', 'last', 'Final')}
-        <span class="st-sep"></span>${tool('flip', 'flip', 'Girar el tablero')}
-        <span class="st-sep"></span>${Object.values(NAGS).map((g) => `<button type="button" class="st-tb st-nag" data-nag="${g}" title="Marcar la jugada con ${g}">${g}</button>`).join('')}
-        <span class="st-sep"></span>${tool('promote', 'up', 'Subir la variante')}${tool('cut', 'cut', 'Borrar desde esta jugada')}
-        <span class="st-sep"></span>${tool('copy', 'copy', 'Copiar PGN')}${tool('save', 'save', 'Descargar .pgn')}${tool('paste', 'paste', 'Pegar PGN o FEN')}
-      </div>
-      <div class="st-notation" id="st-notation" aria-live="polite"></div>
-      <textarea class="st-comment" id="st-comment" rows="2" placeholder="Comentario de esta jugada…"></textarea>
-      <p class="note st-msg" id="st-msg"></p>
-    </section>
+<div class="dk-toolbar">
+  <span class="dk-hint">Arrastra las pestañas para mover los paneles. Suéltalas sobre otra pestaña para agruparlas o en el borde de un panel para dividirlo.</span>
+  <span class="dk-closed" id="st-closed"></span>
+  <button class="btn small" id="st-reset" type="button">Restablecer diseño</button>
+</div>
+<div class="st-dock" id="st-dock"></div>
+<div id="st-panels">
+  <div class="st-pn st-pn-board" data-pn="board">
+    <div class="st-tabs" role="tablist" aria-label="Tableros"></div>
+    <div class="st-board-area"><div class="board" id="st-board"></div></div>
   </div>
-  <div class="st-col">
-    <section class="sp sp-games">
-      <div class="sp-h"><span class="sp-t">${svg('db')}Partidas de mi base</span><span class="sp-sub" id="st-games-sub"></span></div>
-      <div class="st-scroll st-gbox"><table class="table clickable st-gt"><thead><tr>
-        <th>Res.</th><th>Blancas</th><th class="n">Elo</th><th>Negras</th><th class="n">Elo</th><th class="hide-narrow">Torneo</th><th>Fecha</th><th class="hide-narrow">Jugadas</th>
-      </tr></thead><tbody></tbody></table></div>
-    </section>
-    <div class="st-trees">
-      <section class="sp sp-tree">
-        <div class="sp-h"><span class="sp-t">${svg('tree')}Árbol · mi base</span><span class="sp-sub" id="st-tree-sub"></span></div>
-        <div class="st-tf">
-          <input id="st-player" placeholder="Jugador (opcional)" list="st-players" aria-label="Filtrar por jugador">
-          <div class="seg st-color" role="group" aria-label="Color del jugador">
-            <button type="button" data-c="any" title="Con cualquier color">A</button><button type="button" data-c="w" title="Con blancas">B</button><button type="button" data-c="b" title="Con negras">N</button>
-          </div>
-        </div>
-        <datalist id="st-players"></datalist>
-        <div class="st-scroll"><table class="table clickable st-tt"><thead><tr><th>Jugada</th><th class="n">Partidas</th><th>B / T / N</th></tr></thead><tbody></tbody></table></div>
-      </section>
-      <section class="sp sp-ex">
-        <div class="sp-h"><span class="sp-t">${svg('globe')}Lichess</span></div>
-        <div class="st-ex" id="st-ex"></div>
-      </section>
+  <div class="st-pn" data-pn="notation">
+    <div class="pn-bar"><span class="st-game" id="st-game"></span></div>
+    <div class="st-tools">
+      ${tool('first', 'first', 'Inicio')}${tool('prev', 'prev', 'Anterior')}${tool('next', 'next', 'Siguiente')}${tool('last', 'last', 'Final')}
+      <span class="st-sep"></span>${tool('flip', 'flip', 'Girar el tablero')}
+      <span class="st-sep"></span>${Object.values(NAGS).map((g) => `<button type="button" class="st-tb st-nag" data-nag="${g}" title="Marcar la jugada con ${g}">${g}</button>`).join('')}
+      <span class="st-sep"></span>${tool('promote', 'up', 'Subir la variante')}${tool('cut', 'cut', 'Borrar desde esta jugada')}
+      <span class="st-sep"></span>${tool('copy', 'copy', 'Copiar PGN')}${tool('save', 'save', 'Descargar .pgn')}${tool('paste', 'paste', 'Pegar PGN o FEN')}
     </div>
-    <section class="sp sp-engine">
-      <div class="sp-h st-eh">
-        <button type="button" class="st-tb st-run" id="st-run" title="Encender o apagar el motor" aria-label="Encender o apagar el motor"></button>
-        <span class="sp-t">${svg('cpu')}Stockfish 18</span>
-        <span class="st-ed" id="st-depth"></span>
-        <label class="st-sel">Prof. <select id="st-maxd"><option value="18">18</option><option value="22">22</option><option value="26">26</option><option value="30">30</option><option value="99">∞</option></select></label>
-        <span class="st-lines">Líneas <button type="button" class="st-tb" data-lines="-1" aria-label="Menos líneas">−</button><b id="st-nlines">3</b><button type="button" class="st-tb" data-lines="1" aria-label="Más líneas">+</button></span>
+    <div class="st-notation" id="st-notation" aria-live="polite"></div>
+    <textarea class="st-comment" id="st-comment" rows="2" placeholder="Comentario de esta jugada…"></textarea>
+    <p class="note st-msg" id="st-msg"></p>
+  </div>
+  <div class="st-pn" data-pn="games">
+    <div class="pn-bar"><span class="sp-sub" id="st-games-sub"></span></div>
+    <div class="st-scroll"><table class="table clickable st-gt"><thead><tr>
+      <th>Res.</th><th>Blancas</th><th class="n">Elo</th><th>Negras</th><th class="n">Elo</th><th class="hide-narrow">Torneo</th><th>Fecha</th><th class="hide-narrow">Jugadas</th>
+    </tr></thead><tbody></tbody></table></div>
+  </div>
+  <div class="st-pn" data-pn="tree">
+    <div class="st-tf">
+      <input id="st-player" placeholder="Jugador (opcional)" list="st-players" aria-label="Filtrar por jugador">
+      <div class="seg st-color" role="group" aria-label="Color del jugador">
+        <button type="button" data-c="any" title="Con cualquier color">A</button><button type="button" data-c="w" title="Con blancas">B</button><button type="button" data-c="b" title="Con negras">N</button>
       </div>
-      <ol class="st-pv" id="st-pv"></ol>
-    </section>
+      <span class="sp-sub" id="st-tree-sub"></span>
+    </div>
+    <datalist id="st-players"></datalist>
+    <div class="st-scroll"><table class="table clickable st-tt"><thead><tr><th>Jugada</th><th class="n">Partidas</th><th>B / T / N</th></tr></thead><tbody></tbody></table></div>
+  </div>
+  <div class="st-pn" data-pn="lichess"><div class="st-ex" id="st-ex"></div></div>
+  <div class="st-pn" data-pn="engine">
+    <div class="pn-bar st-eh">
+      <button type="button" class="st-tb st-run" id="st-run" title="Encender o apagar el motor" aria-label="Encender o apagar el motor"></button>
+      <span class="st-ed" id="st-depth"></span>
+      <label class="st-sel">Prof. <select id="st-maxd"><option value="18">18</option><option value="22">22</option><option value="26">26</option><option value="30">30</option><option value="99">∞</option></select></label>
+      <span class="st-lines">Líneas <button type="button" class="st-tb" data-lines="-1" aria-label="Menos líneas">−</button><b id="st-nlines">3</b><button type="button" class="st-tb" data-lines="1" aria-label="Más líneas">+</button></span>
+    </div>
+    <ol class="st-pv" id="st-pv"></ol>
   </div>
 </div>
 <dialog class="st-dlg" id="st-dlg">
@@ -101,6 +98,23 @@ const HTML = `
     <div class="row gap"><button class="btn primary" value="open" id="st-dlg-open">Abrir</button><button class="btn" value="cancel" formnovalidate>Cancelar</button></div>
   </form>
 </dialog>`
+
+// Paneles y diseño inicial, parecido al de los vídeos de ChessMonitor Studio.
+const PANELS = {
+  board: { title: 'Tableros', icon: 'board', closable: false },
+  notation: { title: 'Notación', icon: 'list' },
+  games: { title: 'Partidas de mi base', icon: 'db' },
+  tree: { title: 'Árbol · mi base', icon: 'tree' },
+  lichess: { title: 'Lichess', icon: 'globe' },
+  engine: { title: 'Stockfish 18', icon: 'cpu' },
+}
+const stack = (id) => ({ t: 'stack', p: [id], a: id })
+const DEFAULT_LAYOUT = {
+  t: 'row', s: [44, 56], c: [
+    { t: 'col', s: [66, 34], c: [stack('board'), stack('notation')] },
+    { t: 'col', s: [32, 40, 28], c: [stack('games'), { t: 'row', s: [50, 50], c: [stack('tree'), stack('lichess')] }, stack('engine')] },
+  ],
+}
 
 // ---- Tablero ----
 
@@ -152,7 +166,8 @@ class StudioBoard {
 
 // ---- Estado ----
 
-let root, board, engine, explorer
+let root, board, engine, explorer, dock
+let layout = null
 let tabs = [] // {tree, cur, o}
 let active = 0
 let prefs = { engineOn: true, lines: 3, depth: 22, player: '', color: 'any' }
@@ -167,6 +182,7 @@ function load() {
   try {
     const s = JSON.parse(localStorage.getItem(KEY) || '{}')
     prefs = { ...prefs, ...(s.prefs || {}) }
+    layout = s.layout || null
     for (const t of s.tabs || []) {
       try {
         const tree = parsePgn(t.pgn)
@@ -183,7 +199,7 @@ function save() {
   clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
     try {
-      localStorage.setItem(KEY, JSON.stringify({ prefs, active, tabs: tabs.map((t) => ({ pgn: t.tree.toPgn(), addr: t.tree.address(t.cur), o: t.o })) }))
+      localStorage.setItem(KEY, JSON.stringify({ prefs, layout, active, tabs: tabs.map((t) => ({ pgn: t.tree.toPgn(), addr: t.tree.address(t.cur), o: t.o })) }))
     } catch { /* sin almacenamiento o lleno */ }
   }, 300)
 }
@@ -204,6 +220,14 @@ export function init(el) {
   root = el
   root.innerHTML = HTML
   load()
+  const panels = {}
+  for (const [id, p] of Object.entries(PANELS)) panels[id] = { ...p, icon: svg(p.icon), el: root.querySelector(`[data-pn="${id}"]`) }
+  dock = new Dock($('#st-dock'), { panels, layout, defaultLayout: DEFAULT_LAYOUT, onChange: (l) => { layout = l; save(); panelsChanged() } })
+  $('#st-panels').remove()
+  $('#st-reset').addEventListener('click', () => dock.reset())
+  $('#st-closed').addEventListener('click', (e) => { const b = e.target.closest('[data-open]'); if (b) dock.open(b.dataset.open) })
+  paintClosed()
+  openKey = dock.ids().sort().join()
   board = new StudioBoard($('#st-board'), (mv) => playMove(mv))
   engine = sharedEngine()
 
@@ -295,6 +319,30 @@ export function getBoard() {
 
 function visible() { return !root.closest('[hidden]') }
 
+// Paneles cerrados: botones para volver a abrirlos.
+function paintClosed() {
+  const box = $('#st-closed')
+  box.replaceChildren(...dock.closed().map((id) => {
+    const b = document.createElement('button')
+    b.type = 'button'; b.className = 'btn small'; b.dataset.open = id
+    b.innerHTML = `${svg('plus')}<span></span>`
+    b.querySelector('span').textContent = PANELS[id].title
+    b.title = 'Volver a abrir este panel'
+    return b
+  }))
+}
+
+let openKey = ''
+function panelsChanged() {
+  paintClosed()
+  const key = dock.ids().sort().join()
+  if (key === openKey) return
+  openKey = key
+  if (!visible()) return
+  if (dock.isOpen('lichess')) explorer.update(tab().cur.fen, { now: true })
+  analyze()
+}
+
 function playMove(mv) {
   const t = tab()
   const node = t.tree.play(t.cur, mv)
@@ -322,7 +370,7 @@ function update() {
   c.placeholder = t.cur.parent ? `Comentario tras ${fig(t.cur.san)}…` : 'Comentario inicial de la partida…'
   root.querySelectorAll('.st-nag').forEach((b) => b.setAttribute('aria-pressed', String(Boolean(t.cur.parent) && t.cur.nags.includes(Number(Object.keys(NAGS).find((k) => NAGS[k] === b.dataset.nag))))))
   if (!visible()) return
-  explorer.update(t.cur.fen)
+  if (dock.isOpen('lichess')) explorer.update(t.cur.fen)
   queryLocal()
   analyze()
 }
@@ -600,7 +648,7 @@ async function analyze() {
   if (!visible()) return
   const fen = tab().cur.fen
   const id = ++pending
-  if (!prefs.engineOn) { engine.stop(); list.replaceChildren(); depthEl.textContent = 'apagado'; board.setArrows([]); return }
+  if (!prefs.engineOn || !dock.isOpen('engine')) { engine.stop(); list.replaceChildren(); depthEl.textContent = 'apagado'; board.setArrows([]); return }
   const chess = new Chess(fen)
   if (chess.isGameOver()) {
     engine.stop(); list.replaceChildren()
