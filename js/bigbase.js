@@ -70,21 +70,25 @@ async function get(url) {
   return fetch(await signedUrl(url))
 }
 
-async function readJson(path) {
+// Descarga y descomprime un archivo de la base (sin guardarlo en memoria).
+async function fetchJson(path) {
+  const r = await get(baseUrl() + path)
+  if (r.status === 404) return null
+  if (!r.ok) throw new Error(`No se pudo leer la base (${r.status}).`)
+  let bytes = new Uint8Array(await r.arrayBuffer())
+  // Algunos servidores ya lo entregan descomprimido; otros entregan el .gz tal cual.
+  if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
+    bytes = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer())
+  }
+  return JSON.parse(new TextDecoder().decode(bytes))
+}
+
+// Igual, pero los archivos más usados se quedan en memoria.
+function readJson(path) {
   const url = baseUrl() + path
   let p = files.get(url)
   if (p) { files.delete(url); files.set(url, p); return p }
-  p = (async () => {
-    const r = await get(url)
-    if (r.status === 404) return null
-    if (!r.ok) throw new Error(`No se pudo leer la base (${r.status}).`)
-    let bytes = new Uint8Array(await r.arrayBuffer())
-    // Algunos servidores ya lo entregan descomprimido; otros entregan el .gz tal cual.
-    if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
-      bytes = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer())
-    }
-    return JSON.parse(new TextDecoder().decode(bytes))
-  })()
+  p = fetchJson(path)
   p.catch(() => files.delete(url))
   files.set(url, p)
   if (files.size > MAX_FILES) files.delete(files.keys().next().value)
@@ -134,6 +138,33 @@ export async function fullGame(id) {
   const [cab, mov] = await Promise.all([readJson(`cab/${c}.json.gz`), readJson(`mov/${c}.json.gz`)])
   if (!cab?.[n % CHUNK]) throw new Error('No se encontró la partida en la base.')
   return { ...toGame(n, cab[n % CHUNK]), moves: mov[n % CHUNK].split(' ') }
+}
+
+// Muchas partidas completas (por ejemplo, todas las de un jugador), descargando cada bloque de 1000 una sola vez.
+// onBatch(partidas, bloquesHechos, bloquesTotales) recibe las de cada bloque en cuanto llegan; stop() corta la descarga.
+export async function gamesOf(ids, { onBatch, stop, parallel = 6 } = {}) {
+  const byChunk = new Map()
+  for (const i of ids) {
+    const c = Math.floor(i / CHUNK)
+    if (!byChunk.has(c)) byChunk.set(c, [])
+    byChunk.get(c).push(i)
+  }
+  const queue = [...byChunk.entries()]
+  const total = queue.length
+  let done = 0
+  const out = []
+  const work = async () => {
+    for (let job = queue.shift(); job && !stop?.(); job = queue.shift()) {
+      const [c, list] = job
+      const [cab, mov] = await Promise.all([fetchJson(`cab/${c}.json.gz`), fetchJson(`mov/${c}.json.gz`)])
+      const games = list.filter((i) => cab?.[i % CHUNK]).map((i) => ({ ...toGame(i, cab[i % CHUNK]), moves: (mov?.[i % CHUNK] || '').split(' ').filter(Boolean) }))
+      out.push(...games)
+      done++
+      onBatch?.(games, done, total)
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(parallel, total) }, work))
+  return out
 }
 
 // Jugadores cuyo nombre empieza por el texto (mínimo 3 letras, normalmente el apellido).
