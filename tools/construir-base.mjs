@@ -100,6 +100,16 @@ async function main() {
     console.log('Uso: node tools/construir-base.mjs archivo.pgn [--salida base] [--max-jugadas 30] [--min-partidas 2] [--elo 2000] [--desde 1990] [--hasta 2026]')
     process.exit(1)
   }
+  // Si se da una carpeta, se usan todos los .pgn que haya dentro.
+  for (let i = files.length - 1; i >= 0; i--) {
+    const f = files[i]
+    if (!fs.existsSync(f)) { console.log(`No existe: ${f}\nCopia la ruta del archivo .pgn (clic derecho ▸ Copiar como ruta) y pégala entre comillas.`); process.exit(1) }
+    if (fs.statSync(f).isDirectory()) {
+      const pgns = fs.readdirSync(f).filter((x) => /\.pgn$/i.test(x)).map((x) => path.join(f, x))
+      if (!pgns.length) { console.log(`La carpeta ${f} no tiene archivos .pgn. Pon la ruta del archivo .pgn (si solo tienes .cbh/.cbv, expórtalo antes a PGN desde ChessBase).`); process.exit(1) }
+      files.splice(i, 1, ...pgns)
+    }
+  }
   const out = path.resolve(opt.salida)
   const maxPly = Number(opt['max-jugadas'])
   const minGames = Number(opt['min-partidas'])
