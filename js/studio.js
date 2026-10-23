@@ -175,8 +175,7 @@ let prefs = { engineOn: true, lines: 3, depth: 22, player: '', color: 'any' }
 let items = null // índice de la base local
 let big = null // datos de la base grande (R2) si está configurada: entonces el árbol y las partidas salen de ella
 let bigReq = 0
-const playerCache = new Map() // jugador -> sus últimas partidas de la base grande, en el formato del índice local
-const BIG_PLAYER_GAMES = 200
+const playerCache = new Map() // jugador -> todas sus partidas de la base grande, en el formato del índice local
 let indexCount = -1
 let lastQuery = null
 let gameSort = null // {col, dir}: 1 = primer clic, -1 = segundo; null = normal (más recientes primero)
@@ -689,7 +688,7 @@ function paintResults(r, sans) {
   }))
   if (!r.moves.length) empty(tt, 3, r.deep ? 'Línea demasiado larga para el árbol (más de 60 medias jugadas).' : 'Ninguna partida de tu base sigue desde aquí.')
 
-  gt.replaceChildren(...sortGames(r.games).slice(0, 200).map((g) => {
+  gt.replaceChildren(...sortGames(r.games).slice(0, 1000).map((g) => {
     const tr = document.createElement('tr'); tr.dataset.id = g.id
     const cells = [
       [g.r === '½-½' ? '½-½' : g.r, 'st-res ' + (g.r === '1-0' ? 'w' : g.r === '0-1' ? 'l' : 'd')],
@@ -720,24 +719,42 @@ function contFrom(g, fen, max = 8) {
   return []
 }
 
-// Últimas partidas del jugador en la base grande, con jugadas, para construir su árbol.
-function playerItems(name, onProgress) {
+// Todas las partidas del jugador en la base grande, con jugadas, para construir su árbol.
+// Se descargan por bloques y el panel se va actualizando mientras llegan.
+let playerLoad = null // {key, name, total, items, done, stopped}
+function playerItems(name) {
   const k = name.toLowerCase()
-  if (!playerCache.has(k)) {
-    const p = (async () => {
-      const found = await bigbase.findPlayers(name)
-      const pick = found.find((x) => x.name.toLowerCase() === k) || found[0]
-      if (!pick) return { name, items: [], total: 0 }
-      const ids = pick.ids.slice(0, BIG_PLAYER_GAMES)
-      let done = 0
-      const games = await Promise.all(ids.map((id) => bigbase.fullGame(id).then((g) => { onProgress?.(++done, ids.length); return g }).catch(() => null)))
-      const items = games.filter(Boolean).map((g) => bigItem(g, { line: g.moves.slice(0, 60).join(' ') }))
-      return { name: pick.name, items, total: pick.ids.length }
-    })()
-    p.catch(() => playerCache.delete(k))
-    playerCache.set(k, p)
-  }
-  return playerCache.get(k)
+  if (playerLoad?.key === k) return playerLoad
+  if (playerLoad && !playerLoad.done) playerLoad.stopped = true
+  const cached = playerCache.get(k)
+  if (cached) return (playerLoad = cached)
+  const pl = { key: k, name, total: 0, items: [], done: false, stopped: false, found: true }
+  playerLoad = pl
+  ;(async () => {
+    const found = await bigbase.findPlayers(name)
+    const pick = found.find((x) => x.name.toLowerCase() === k) || found[0]
+    if (!pick) { pl.found = false; pl.done = true; refreshPlayer(pl); return }
+    pl.name = pick.name; pl.total = pick.ids.length
+    let last = 0
+    await bigbase.gamesOf(pick.ids, {
+      stop: () => pl.stopped,
+      onBatch: (games) => {
+        pl.items.push(...games.map((g) => bigItem(g, { line: g.moves.slice(0, 60).join(' ') })))
+        if (Date.now() - last > 1200) { last = Date.now(); refreshPlayer(pl) }
+      },
+    })
+    if (pl.stopped) return
+    pl.done = true
+    playerCache.set(k, pl)
+    refreshPlayer(pl)
+  })().catch((e) => { pl.error = e.message; pl.done = true; refreshPlayer(pl) })
+  return pl
+}
+
+function refreshPlayer(pl) {
+  if (pl !== playerLoad || !big || !visible()) return
+  lastQuery = null
+  queryBig()
 }
 
 async function queryBig() {
@@ -752,14 +769,14 @@ async function queryBig() {
   try {
     if (prefs.player) {
       if (!t.tree.standardStart) { emptyRow($('.st-tt tbody'), 3, 'El filtro de jugador busca desde la posición inicial.'); emptyRow($('.st-gt tbody'), 8, ''); return }
-      $('#st-tree-sub').textContent = 'cargando sus partidas…'
-      const pl = await playerItems(prefs.player, (k, n) => { if (id === bigReq) $('#st-games-sub').textContent = `cargando partidas de ${prefs.player}… ${k} / ${n}` })
-      if (id !== bigReq) return
+      const pl = playerItems(prefs.player)
+      if (pl.error) throw new Error(pl.error)
       const r = queryLine(pl.items, sans, { player: pl.name, color: prefs.color })
       const col = prefs.color === 'w' ? ' (blancas)' : prefs.color === 'b' ? ' (negras)' : ''
-      const of = pl.total > pl.items.length ? ` de sus últimas ${fmtN(pl.items.length)}` : ''
-      $('#st-tree-sub').textContent = pl.items.length ? `${fmtN(r.total)} partidas de ${pl.name}${col}${of}` : `${name}: ningún jugador empieza por "${prefs.player}"`
-      $('#st-games-sub').textContent = `${fmtN(r.total)} en esta posición · ${pl.name}${col} · ${sortLabel('más recientes primero')}`
+      const loading = pl.done ? '' : ` · cargando ${fmtN(pl.items.length)} de ${fmtN(pl.total)}…`
+      $('#st-tree-sub').textContent = !pl.found ? `${name}: ningún jugador empieza por "${prefs.player}"`
+        : pl.total ? `${fmtN(r.total)} partidas de ${pl.name}${col}${loading}` : 'buscando el jugador…'
+      $('#st-games-sub').textContent = `${fmtN(r.total)} en esta posición · ${pl.name}${col} · ${sortLabel('más recientes primero')}${loading}`
       paintResults(r, sans)
       return
     }
