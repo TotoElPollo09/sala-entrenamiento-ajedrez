@@ -1,12 +1,27 @@
 // Página Base de datos: importar PGN (FIDE, TWIC, torneos) y buscar partidas.
 import { streamPgnFile, importFilter, addGames, countGames, clearGames, findGames } from './db.js'
-import { emit } from './store.js'
+import { emit, onSettingsChange } from './store.js'
+import * as bigbase from './bigbase.js'
 
 const HTML = `
 <div class="page-head"><div><h1>Base de datos</h1>
 <p class="lead">Guarda en este navegador partidas oficiales y de torneos en formato PGN para estudiar rivales que no juegan en Lichess.</p></div></div>
 <section class="card">
-  <h3>Importar PGN</h3>
+  <h3>Base grande</h3>
+  <p class="note" id="g-status">Buscando la base grande…</p>
+  <div class="row gap flexwrap end">
+    <label class="field grow"><span>Jugador (apellido, mínimo 3 letras)</span><input id="g-player" placeholder="Carlsen" list="g-names"></label>
+    <button class="btn primary" id="g-go" type="button">Buscar</button>
+  </div>
+  <datalist id="g-names"></datalist>
+  <p class="note" id="g-msg"></p>
+  <div class="tablebox tall" id="g-box" hidden><table class="table clickable" id="g-res"><thead><tr>
+    <th>Fecha</th><th>Blancas</th><th>Negras</th><th>Resultado</th><th class="hide-narrow">ECO</th><th class="hide-narrow">Torneo</th>
+  </tr></thead><tbody></tbody></table></div>
+  <div class="row gap"><button class="btn small" id="g-more" type="button" hidden>Ver más partidas</button></div>
+</section>
+<section class="card">
+  <h3>Importar PGN a este navegador</h3>
   <p class="note">Descarga partidas oficiales en PGN, por ejemplo de The Week in Chess (theweekinchess.com/twic) o de la web de tu federación o torneo, o exporta tu base de ChessBase a PGN, y arrástralas aquí.</p>
   <details class="b-filter">
     <summary>Filtro para bases grandes (opcional)</summary>
@@ -67,6 +82,75 @@ export function init(el) {
     if (tr) { emit('open-game', results[Number(tr.dataset.i)]); emit('go', 'analysis') }
   })
   refreshCount()
+  initBig()
+}
+
+// ---- Base grande ----
+let big = { ids: [], shown: 0, games: [] }
+const fmtN = (n) => n.toLocaleString('es')
+
+async function bigStatus() {
+  const m = await bigbase.manifest()
+  root.querySelector('#g-status').textContent = m
+    ? `${m.nombre}: ${fmtN(m.partidas)} partidas y ${fmtN(m.posiciones)} posiciones (creada el ${m.creada}). Se consulta por partes: también la tienes en el explorador de Análisis y Studio, pestaña "Mi base".`
+    : `No hay base grande en ${bigbase.baseUrl()}. Créala con tools/construir-base.mjs (instrucciones en el README) y pon su dirección en Ajustes.`
+}
+
+function initBig() {
+  bigStatus()
+  onSettingsChange(bigStatus)
+  const inp = root.querySelector('#g-player')
+  root.querySelector('#g-go').addEventListener('click', bigSearch)
+  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') bigSearch() })
+  root.querySelector('#g-more').addEventListener('click', bigMore)
+  root.querySelector('#g-res').addEventListener('click', async (e) => {
+    const tr = e.target.closest('tr[data-i]')
+    if (!tr) return
+    const msg = root.querySelector('#g-msg')
+    try { emit('open-game', await bigbase.fullGame(big.games[Number(tr.dataset.i)].id)); emit('go', 'analysis') } catch (err) { msg.textContent = err.message }
+  })
+}
+
+async function bigSearch() {
+  const msg = root.querySelector('#g-msg')
+  const text = root.querySelector('#g-player').value.trim()
+  big = { ids: [], shown: 0, games: [] }
+  root.querySelector('#g-res tbody').replaceChildren()
+  root.querySelector('#g-box').hidden = true
+  root.querySelector('#g-more').hidden = true
+  if (text.length < 3) { msg.textContent = 'Escribe al menos 3 letras del apellido.'; return }
+  msg.textContent = 'Buscando…'
+  try {
+    const found = await bigbase.findPlayers(text)
+    root.querySelector('#g-names').innerHTML = found.slice(0, 30).map((p) => `<option value="${p.name.replace(/"/g, '&quot;')}">`).join('')
+    if (!found.length) { msg.textContent = 'Ningún jugador de la base empieza así.'; return }
+    // Si el texto coincide con un nombre exacto, solo ese; si no, todos los que empiezan así (máximo 30).
+    const exact = found.filter((p) => p.name.toLowerCase() === text.toLowerCase())
+    const use = exact.length ? exact : found.slice(0, 30)
+    big.ids = use.flatMap((p) => p.ids)
+    msg.textContent = use.length === 1
+      ? `${use[0].name}: ${fmtN(big.ids.length)} partidas.`
+      : `${fmtN(found.length)} jugadores empiezan así (${use.slice(0, 5).map((p) => `${p.name} ${fmtN(p.ids.length)}`).join(', ')}${found.length > 5 ? '…' : ''}). Elige uno de la lista para ver solo sus partidas.`
+    await bigMore()
+  } catch (e) { msg.textContent = e.message }
+}
+
+async function bigMore() {
+  const next = big.ids.slice(big.shown, big.shown + 100)
+  big.shown += next.length
+  const games = (await bigbase.headers(next)).sort((a, b) => (a.date < b.date ? 1 : -1))
+  const tb = root.querySelector('#g-res tbody')
+  for (const g of games) {
+    const tr = document.createElement('tr'); tr.dataset.i = big.games.length
+    big.games.push(g)
+    ;[[g.date, ''], [`${g.white}${g.whiteElo ? ` (${g.whiteElo})` : ''}`, ''], [`${g.black}${g.blackElo ? ` (${g.blackElo})` : ''}`, ''], [g.result, ''],
+      [g.eco, 'hide-narrow'], [g.event, 'hide-narrow']].forEach(([t, cls]) => {
+      const td = document.createElement('td'); td.textContent = t; td.className = cls; tr.appendChild(td)
+    })
+    tb.appendChild(tr)
+  }
+  root.querySelector('#g-box').hidden = !big.games.length
+  root.querySelector('#g-more').hidden = big.shown >= big.ids.length
 }
 
 async function refreshCount() {
