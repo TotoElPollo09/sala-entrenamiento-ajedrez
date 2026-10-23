@@ -13,6 +13,9 @@ const HTML = `
   <h3>Lichess</h3>
   <label class="field"><span>Token personal (opcional)</span><input id="s-token" type="password" autocomplete="off" placeholder="lip_…"></label>
   <p class="note">Solo hace falta para el explorador de maestros y para descargar partidas más rápido. Créalo en lichess.org/account/oauth/token sin marcar ningún permiso.</p>
+  <h3>Base grande</h3>
+  <label class="field"><span>Dirección de la base (opcional)</span><input id="s-base" placeholder="base/ (en esta misma web)"></label>
+  <p class="note">Déjalo vacío si la base está en la carpeta base/ de esta web. Si la alojas aparte (otro repositorio de GitHub Pages, Cloudflare R2…), pega aquí la dirección de la carpeta donde está manifest.json.</p>
   <h3>Stockfish</h3>
   <div class="row gap">
     <label class="field"><span>Profundidad</span><input id="s-depth" type="number" min="8" max="30"></label>
@@ -32,6 +35,7 @@ export function init(root) {
   box.querySelectorAll('input').forEach((inp) => { inp.value = settings.players[inp.dataset.p][inp.dataset.k] || '' })
   root.querySelector('#s-sheet').value = settings.sheetId
   root.querySelector('#s-token').value = settings.lichessToken
+  root.querySelector('#s-base').value = settings.bigBaseUrl
   root.querySelector('#s-depth').value = settings.engineDepth
   root.querySelector('#s-lines').value = settings.engineLines
   root.querySelector('#s-save').addEventListener('click', () => {
@@ -43,6 +47,7 @@ export function init(root) {
       players,
       sheetId: sheetIdFrom(root.querySelector('#s-sheet').value),
       lichessToken: root.querySelector('#s-token').value.trim(),
+      bigBaseUrl: root.querySelector('#s-base').value.trim(),
       engineDepth: Math.max(8, Math.min(30, Number(root.querySelector('#s-depth').value) || 18)),
       engineLines: Math.max(1, Math.min(5, Number(root.querySelector('#s-lines').value) || 3)),
     })

@@ -9,8 +9,8 @@ Web de entrenamiento de ajedrez para Johan y Mari. No necesita servidor propio n
 | Studio | Mesa de análisis al estilo ChessMonitor Studio: varios tableros en pestañas, notación con variantes, comentarios y signos (!, ?, !?…), partidas de tu base que llegan a la posición, árbol de tu base filtrable por jugador y color, explorador de Lichess y Stockfish con 1 a 5 líneas (pulsa una jugada de la línea para añadirla como variante). Pega PGN con variantes o descárgalo. Las pestañas se guardan en el navegador. |
 | Aperturas | Árbol de jugadas de tus partidas de Lichess, de un rival, de tu base local o del explorador de Lichess, con tus puntos en cada jugada. Repertorio guardado en el navegador. |
 | Rivales | Escribe un usuario de Lichess (o un nombre de tu base local): rating, puntos con cada color, aperturas por color, primeras jugadas y todas sus partidas para abrirlas en Análisis. |
-| Base de datos | Importa archivos PGN (partidas oficiales FIDE, TWIC, torneos o una base de ChessBase exportada a PGN) y busca por jugador, torneo o apertura. Con bases de millones de partidas, el filtro de importación (jugadores, ECO, Elo mínimo, años) guarda solo lo que vas a estudiar. |
-| Ajustes | Usuarios de Lichess, ID de la hoja, token de Lichess y profundidad de Stockfish. |
+| Base de datos | Base grande (millones de partidas, ver abajo): busca partidas por jugador sin descargar la base. Además importa archivos PGN (partidas oficiales FIDE, TWIC, torneos o una base de ChessBase exportada a PGN) y busca por jugador, torneo o apertura. Con bases de millones de partidas, el filtro de importación (jugadores, ECO, Elo mínimo, años) guarda solo lo que vas a estudiar. |
+| Ajustes | Usuarios de Lichess, ID de la hoja, token de Lichess, dirección de la base grande y profundidad de Stockfish. |
 
 ## Antes de empezar
 
@@ -33,12 +33,29 @@ y abre http://localhost:8000 en el navegador.
 
 Sube la carpeta a un repositorio de GitHub y activa **GitHub Pages** (Settings ▸ Pages ▸ rama `main`, carpeta raíz). También sirven Netlify o Cloudflare Pages arrastrando la carpeta.
 
+## Base grande (millones de partidas)
+
+Para una base enorme (por ejemplo 14 millones de partidas exportadas de ChessBase a PGN) la web no la importa en el navegador: se convierte una sola vez en miles de archivos pequeños y la página descarga solo el trozo que necesita (la posición del tablero, la partida que abres o el jugador que buscas), como el explorador de Lichess.
+
+1. Instala Node.js (versión 20 o más nueva) desde nodejs.org.
+2. En la carpeta de esta web ejecuta:
+
+   ```
+   node tools/construir-base.mjs "C:\ruta\a\tu-base.pgn" --salida base --nombre "Mi base"
+   ```
+
+   Opciones útiles: `--max-jugadas 30` (medias jugadas del árbol, por defecto 30), `--min-partidas 2` (posiciones con menos partidas se omiten), `--elo 2000`, `--desde 1990`, `--hasta 2026`. Con 14 millones de partidas tarda del orden de una a tres horas y necesita unos 20 GB libres de disco mientras trabaja (se borran al terminar).
+3. Publica la carpeta `base` resultante (si pesa menos de ~900 MB cabe en GitHub Pages; si no, en un alojamiento de archivos estáticos con CORS) y pon su dirección en **Ajustes ▸ Base grande**. Si la dejas en la carpeta `base/` de esta misma web no hace falta poner nada.
+
+En **Análisis** y **Studio** aparece la pestaña **Mi base** del explorador (jugadas, resultados, Elo medio y partidas destacadas de cada posición, con transposiciones) y en **Base de datos** el buscador de jugadores.
+
 ## Estructura
 
 ```
 index.html        páginas y navegación
 css/app.css       estilos (tema claro y oscuro)
 js/               código de cada página
+tools/            construir-base.mjs: convierte un PGN enorme en la base grande troceada
 vendor/           librerías incluidas: Stockfish 18 lite (GPLv3), chess.js, cm-chessboard, d3
 ```
 

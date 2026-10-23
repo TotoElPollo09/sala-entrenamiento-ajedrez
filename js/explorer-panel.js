@@ -1,7 +1,9 @@
-// Explorador de aperturas como el de lichess.org: Maestros, base de Lichess (por ritmo, rating y fechas) y Jugador.
+// Explorador de aperturas como el de lichess.org: Maestros, base de Lichess (por ritmo, rating y fechas), Jugador y Mi base (la base grande propia).
 /* global d3 */
 import { explorerQuery, fetchExplorerPgn } from './lichess.js'
 import { settings } from './store.js'
+import * as bigbase from './bigbase.js'
+import { gameToPgn } from './db.js'
 
 const KEY = 'ajedrez-web:explorador'
 const SPEEDS = [['ultraBullet', 'UltraBullet'], ['bullet', 'Bullet'], ['blitz', 'Blitz'], ['rapid', 'Rápidas'], ['classical', 'Clásicas'], ['correspondence', 'Correspondencia']]
@@ -16,7 +18,7 @@ function savePrefs(p) { try { localStorage.setItem(KEY, JSON.stringify(p)) } cat
 const HTML = `
 <div class="row between"><h3>Explorador de aperturas</h3><button class="btn small" type="button" data-x="toggle" aria-expanded="false">Filtros</button></div>
 <div class="seg ex-tabs" role="group" aria-label="Base de partidas">
-  <button type="button" data-db="masters">Maestros</button><button type="button" data-db="lichess">Lichess</button><button type="button" data-db="player">Jugador</button>
+  <button type="button" data-db="masters">Maestros</button><button type="button" data-db="lichess">Lichess</button><button type="button" data-db="player">Jugador</button><button type="button" data-db="mine">Mi base</button>
 </div>
 <div class="ex-filters" hidden>
   <div data-for="lichess player"><span class="ex-label">Ritmo</span><div class="chips" data-x="speeds"></div></div>
@@ -107,7 +109,7 @@ export class ExplorerPanel {
     this.$('ratings').querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(this.p.ratings.map(String).includes(b.dataset.v))))
     this.$('color').querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.c === this.p.color)))
     this.$('avg-h').textContent = db === 'player' ? 'Rival medio' : 'Rating medio'
-    this.$('games-h').textContent = db === 'masters' ? 'Partidas destacadas' : 'Partidas recientes'
+    this.$('games-h').textContent = db === 'masters' || db === 'mine' ? 'Partidas destacadas' : 'Partidas recientes'
   }
 
   changed() {
@@ -121,6 +123,7 @@ export class ExplorerPanel {
     const { db, speeds, ratings, since, until, mSince, mUntil, player, color } = this.p
     const range = (a, b) => (a || b ? ` · ${a || 'inicio'} a ${b || 'hoy'}` : '')
     const sp = speeds.map((s) => SPEEDS.find(([v]) => v === s)?.[1]).join(', ')
+    if (db === 'mine') return this.mine ? `${this.mine.nombre} (${fmtN(this.mine.partidas)} partidas, hasta la jugada ${Math.floor(this.mine.maxJugadas / 2)})` : 'Mi base'
     if (db === 'masters') return `Partidas de maestros (2200+ FIDE)${range(mSince, mUntil)}`
     if (db === 'lichess') return `Lichess · ${sp} · rating ${ratings.join(', ')}${range(since, until)}`
     return `${player || '?'} con ${color === 'white' ? 'blancas' : 'negras'} · ${sp}${range(since, until)}`
@@ -155,12 +158,13 @@ export class ExplorerPanel {
     const status = this.$('status')
     if (db === 'player' && !this.p.player) { status.textContent = 'Escribe un usuario de Lichess en Filtros.'; this.render(null); return }
     const q = this.params(fen)
-    const key = db + '?' + new URLSearchParams(q)
+    const key = db === 'mine' ? `mine:${bigbase.baseUrl()}:${fen}` : db + '?' + new URLSearchParams(q)
     const id = ++this.req
     status.textContent = `${this.summary()} · cargando…`
     try {
       let r = this.cache.get(key)
-      if (!r) { r = await explorerQuery(db, q); this.cache.set(key, r) }
+      if (db === 'mine') this.mine = await bigbase.manifest()
+      if (!r) { r = db === 'mine' ? await bigbase.explore(fen) : await explorerQuery(db, q); this.cache.set(key, r) }
       if (id !== this.req) return
       const total = (r.white || 0) + (r.draws || 0) + (r.black || 0)
       status.textContent = `${this.summary()} · ${fmtN(total)} partidas${r.opening ? ` · ${r.opening.eco} ${r.opening.name}` : ''}`
@@ -216,7 +220,7 @@ export class ExplorerPanel {
     const prev = status.textContent
     status.textContent = 'Abriendo la partida…'
     try {
-      const pgn = await fetchExplorerPgn(li.dataset.id, this.p.db)
+      const pgn = li.dataset.id.startsWith('base:') ? gameToPgn(await bigbase.fullGame(li.dataset.id)) : await fetchExplorerPgn(li.dataset.id, this.p.db)
       status.textContent = prev
       this.el.querySelectorAll('.ex-games li.on').forEach((x) => x.classList.remove('on'))
       li.classList.add('on')
