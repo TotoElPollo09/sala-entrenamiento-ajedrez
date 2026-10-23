@@ -4,11 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sala de Entrenamiento</title>
+  <meta name="theme-color" content="#0f1115">
+  <script>try { const t = localStorage.getItem('ajedrez-web:tema'); if (t) document.documentElement.dataset.theme = t } catch {}</script>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="vendor/cm-chessboard/assets/chessboard.css">
   <link rel="stylesheet" href="vendor/cm-chessboard/assets/extensions/markers/markers.css">
   <link rel="stylesheet" href="vendor/cm-chessboard/assets/extensions/arrows/arrows.css">
@@ -16,19 +18,21 @@
   <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
-  <header class="top">
-    <div class="top-inner">
-      <a class="brand" href="#dashboard"><span class="brand-mark" aria-hidden="true">♞</span> Sala de Entrenamiento</a>
-      <nav class="tabs" aria-label="Secciones">
-        <a href="#dashboard" data-page="dashboard">Dashboard</a>
-        <a href="#analysis" data-page="analysis">Análisis</a>
-        <a href="#openings" data-page="openings">Aperturas</a>
-        <a href="#rivals" data-page="rivals">Rivales</a>
-        <a href="#database" data-page="database">Base de datos</a>
-        <a href="#settings" data-page="settings">Ajustes</a>
-      </nav>
-    </div>
-  </header>
+  <aside class="side">
+    <a class="brand" href="#dashboard"><span class="brand-mark" aria-hidden="true">♞</span><span>Sala de <b>Entrenamiento</b></span></a>
+    <nav class="tabs" aria-label="Secciones">
+      <p class="nav-h">Entrenamiento</p>
+      <a href="#dashboard" data-page="dashboard"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h7V3H3zM14 21h7V11h-7zM14 3v5h7V3zM3 21h7v-5H3z"/></svg><span class="nl">Dashboard</span><span class="ns" aria-hidden="true">Inicio</span></a>
+      <a href="#analysis" data-page="analysis"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 15 4-5 3 3 5-7"/></svg><span class="nl">Análisis</span><span class="ns" aria-hidden="true">Análisis</span></a>
+      <a href="#openings" data-page="openings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg><span class="nl">Aperturas</span><span class="ns" aria-hidden="true">Aperturas</span></a>
+      <a href="#rivals" data-page="rivals"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-7 7-7s7 3 7 7"/><path d="M16 4a4 4 0 0 1 0 8M22 21c0-3-2-6-5-7"/></svg><span class="nl">Rivales</span><span class="ns" aria-hidden="true">Rivales</span></a>
+      <a href="#database" data-page="database"><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><span class="nl">Base de datos</span><span class="ns" aria-hidden="true">Base</span></a>
+      <p class="nav-h">Cuenta</p>
+      <a href="#settings" data-page="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span class="nl">Ajustes</span><span class="ns" aria-hidden="true">Ajustes</span></a>
+    </nav>
+    <button class="theme-btn" id="theme-btn" type="button" aria-label="Cambiar tema claro u oscuro"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><span>Tema claro / oscuro</span></button>
+  </aside>
+  <div class="content">
   <main class="wrap">
     <div id="page-dashboard" class="page"></div>
     <div id="page-analysis" class="page" hidden></div>
@@ -37,7 +41,8 @@
     <div id="page-database" class="page" hidden></div>
     <div id="page-settings" class="page" hidden></div>
   </main>
-  <footer class="foot wrap">Motor: Stockfish 18 (GPLv3) · Partidas y explorador: API de Lichess · Datos de entrenamiento: tu hoja de Google</footer>
+  <footer class="foot">Motor: Stockfish 18 (GPLv3) · Partidas y explorador: API de Lichess · Datos de entrenamiento: tu hoja de Google</footer>
+  </div>
   <script src="vendor/d3.min.js"></script>
   <script type="module" src="js/app.js"></script>
 </body>

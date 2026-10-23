@@ -28,3 +28,14 @@ window.addEventListener('hashchange', () => go(location.hash.slice(1)))
 on('go', go)
 bindKeys(() => (current === 'analysis' ? analysis.getBoard() : current === 'openings' ? openings.getBoard() : null))
 go(location.hash.slice(1) || 'dashboard')
+
+// Tema oscuro (por defecto) o claro, recordado en este navegador.
+const THEME_KEY = 'ajedrez-web:tema'
+function setTheme(t) {
+  if (t === 'light') document.documentElement.dataset.theme = 'light'
+  else delete document.documentElement.dataset.theme
+  document.querySelector('meta[name="theme-color"]').content = t === 'light' ? '#ffffff' : '#0f1115'
+  try { localStorage.setItem(THEME_KEY, t) } catch { /* sin almacenamiento */ }
+}
+document.getElementById('theme-btn').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'))
+if (document.documentElement.dataset.theme === 'light') setTheme('light')
