@@ -9,6 +9,8 @@ const DEFAULTS = {
   ],
   lichessToken: '',
   bigBaseUrl: '', // dirección de la base grande; vacío = carpeta base/ de la propia web
+  bigBaseKeyId: '', // clave de solo lectura si la base es privada (Cloudflare R2)
+  bigBaseSecret: '',
   engineDepth: 18,
   engineLines: 3,
 }

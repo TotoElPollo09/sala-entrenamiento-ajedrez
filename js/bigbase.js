@@ -18,12 +18,40 @@ export function baseUrl() {
 // Datos de la base ({nombre, partidas, posiciones, …}) o null si no hay ninguna publicada en la dirección.
 export function manifest() {
   const url = baseUrl() + 'manifest.json'
-  if (manifestUrl !== url) {
-    manifestUrl = url
+  const id = url + '|' + (settings.bigBaseKeyId || '')
+  if (manifestUrl !== id) {
+    manifestUrl = id
     files.clear()
-    manifestP = fetch(url, { cache: 'no-cache' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+    manifestP = get(url).then((r) => (r.ok ? r.json() : null)).catch(() => null)
   }
   return manifestP
+}
+
+// Base privada en Cloudflare R2 (u otro almacenamiento S3): con la clave de solo lectura de Ajustes
+// cada archivo se pide con una URL firmada que caduca a la hora.
+async function signedUrl(url) {
+  const { bigBaseKeyId: keyId, bigBaseSecret: secret } = settings
+  if (!keyId || !secret) return url
+  const u = new URL(url, location.href)
+  const enc = new TextEncoder()
+  const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('')
+  const hmac = async (key, text) => crypto.subtle.sign('HMAC', await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']), enc.encode(text))
+  const now = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '')
+  const day = now.slice(0, 8)
+  const scope = `${day}/auto/s3/aws4_request`
+  const q = { 'X-Amz-Algorithm': 'AWS4-HMAC-SHA256', 'X-Amz-Credential': `${keyId}/${scope}`, 'X-Amz-Date': now, 'X-Amz-Expires': '3600', 'X-Amz-SignedHeaders': 'host' }
+  const rfc = (s) => encodeURIComponent(s).replace(/[!'()*]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase())
+  const query = Object.keys(q).sort().map((k) => `${rfc(k)}=${rfc(q[k])}`).join('&')
+  const path = u.pathname.split('/').map((s) => rfc(decodeURIComponent(s))).join('/')
+  const canonical = `GET\n${path}\n${query}\nhost:${u.host}\n\nhost\nUNSIGNED-PAYLOAD`
+  const toSign = `AWS4-HMAC-SHA256\n${now}\n${scope}\n${hex(await crypto.subtle.digest('SHA-256', enc.encode(canonical)))}`
+  let k = await hmac(enc.encode('AWS4' + secret), day)
+  for (const part of ['auto', 's3', 'aws4_request']) k = await hmac(k, part)
+  return `${u.origin}${path}?${query}&X-Amz-Signature=${hex(await hmac(k, toSign))}`
+}
+
+async function get(url) {
+  return fetch(await signedUrl(url))
 }
 
 async function readJson(path) {
@@ -31,7 +59,7 @@ async function readJson(path) {
   let p = files.get(url)
   if (p) { files.delete(url); files.set(url, p); return p }
   p = (async () => {
-    const r = await fetch(url)
+    const r = await get(url)
     if (r.status === 404) return null
     if (!r.ok) throw new Error(`No se pudo leer la base (${r.status}).`)
     let bytes = new Uint8Array(await r.arrayBuffer())

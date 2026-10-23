@@ -47,6 +47,13 @@ Para una base enorme (por ejemplo 14 millones de partidas exportadas de ChessBas
    Opciones útiles: `--max-jugadas 30` (medias jugadas del árbol, por defecto 30), `--min-partidas 2` (posiciones con menos partidas se omiten), `--elo 2000`, `--desde 1990`, `--hasta 2026`. Con 14 millones de partidas tarda del orden de una a tres horas y necesita unos 20 GB libres de disco mientras trabaja (se borran al terminar).
 3. Publica la carpeta `base` resultante (si pesa menos de ~900 MB cabe en GitHub Pages; si no, en un alojamiento de archivos estáticos con CORS) y pon su dirección en **Ajustes ▸ Base grande**. Si la dejas en la carpeta `base/` de esta misma web no hace falta poner nada.
 
+### Base privada en Cloudflare R2
+
+1. Crea un bucket en Cloudflare R2 (gratis hasta 10 GB) y, en su pestaña *Settings ▸ CORS Policy*, permite `GET` desde `https://totoelpollo09.github.io`.
+2. Crea un *API token* de R2 con permiso **Object Read only** para ese bucket. Guarda el *Access Key ID* y el *Secret Access Key*.
+3. Sube la carpeta `base` (por ejemplo con `rclone copy base r2:NOMBRE-DEL-BUCKET/base --transfers 32`).
+4. En **Ajustes ▸ Base grande** pega la dirección `https://ID-DE-CUENTA.r2.cloudflarestorage.com/NOMBRE-DEL-BUCKET/base/` y las dos claves. La web firma cada petición, así que la base no queda abierta a cualquiera.
+
 En **Análisis** y **Studio** aparece la pestaña **Mi base** del explorador (jugadas, resultados, Elo medio y partidas destacadas de cada posición, con transposiciones) y en **Base de datos** el buscador de jugadores.
 
 ## Estructura
