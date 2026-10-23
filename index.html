@@ -15,7 +15,7 @@
   <link rel="stylesheet" href="vendor/cm-chessboard/assets/extensions/markers/markers.css">
   <link rel="stylesheet" href="vendor/cm-chessboard/assets/extensions/arrows/arrows.css">
   <link rel="stylesheet" href="vendor/cm-chessboard/assets/extensions/promotion-dialog/promotion-dialog.css">
-  <link rel="stylesheet" href="css/app.css?v=2">
+  <link rel="stylesheet" href="css/app.css?v=3">
 </head>
 <body>
   <aside class="side">
@@ -24,6 +24,7 @@
       <p class="nav-h">Entrenamiento</p>
       <a href="#dashboard" data-page="dashboard"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h7V3H3zM14 21h7V11h-7zM14 3v5h7V3zM3 21h7v-5H3z"/></svg><span class="nl">Dashboard</span><span class="ns" aria-hidden="true">Inicio</span></a>
       <a href="#analysis" data-page="analysis"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 15 4-5 3 3 5-7"/></svg><span class="nl">Análisis</span><span class="ns" aria-hidden="true">Análisis</span></a>
+      <a href="#studio" data-page="studio"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18M12 12h9M3 15h9"/></svg><span class="nl">Studio</span><span class="ns" aria-hidden="true">Studio</span></a>
       <a href="#openings" data-page="openings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg><span class="nl">Aperturas</span><span class="ns" aria-hidden="true">Aperturas</span></a>
       <a href="#rivals" data-page="rivals"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-7 7-7s7 3 7 7"/><path d="M16 4a4 4 0 0 1 0 8M22 21c0-3-2-6-5-7"/></svg><span class="nl">Rivales</span><span class="ns" aria-hidden="true">Rivales</span></a>
       <a href="#database" data-page="database"><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><span class="nl">Base de datos</span><span class="ns" aria-hidden="true">Base</span></a>
@@ -36,6 +37,7 @@
   <main class="wrap">
     <div id="page-dashboard" class="page"></div>
     <div id="page-analysis" class="page" hidden></div>
+    <div id="page-studio" class="page" hidden></div>
     <div id="page-openings" class="page" hidden></div>
     <div id="page-rivals" class="page" hidden></div>
     <div id="page-database" class="page" hidden></div>
@@ -44,6 +46,6 @@
   <footer class="foot">Motor: Stockfish 18 (GPLv3) · Partidas y explorador: API de Lichess · Datos de entrenamiento: tu hoja de Google</footer>
   </div>
   <script src="vendor/d3.min.js"></script>
-  <script type="module" src="js/app.js?v=2"></script>
+  <script type="module" src="js/app.js?v=3"></script>
 </body>
 </html>
