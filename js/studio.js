@@ -64,7 +64,7 @@ const HTML = `
   <div class="st-pn" data-pn="games">
     <div class="pn-bar"><span class="sp-sub" id="st-games-sub"></span></div>
     <div class="st-scroll"><table class="table clickable st-gt"><thead><tr>
-      <th>Res.</th><th>Blancas</th><th class="n">Elo</th><th>Negras</th><th class="n">Elo</th><th class="hide-narrow">Torneo</th><th>Fecha</th><th class="hide-narrow">Jugadas</th>
+      <th data-sort="r">Res.</th><th data-sort="w">Blancas</th><th class="n" data-sort="we">Elo</th><th data-sort="b">Negras</th><th class="n" data-sort="be">Elo</th><th class="hide-narrow" data-sort="ev">Torneo</th><th data-sort="d">Fecha</th><th class="hide-narrow" data-sort="ply">Jugadas</th>
     </tr></thead><tbody></tbody></table></div>
   </div>
   <div class="st-pn" data-pn="tree">
@@ -174,6 +174,38 @@ let prefs = { engineOn: true, lines: 3, depth: 22, player: '', color: 'any' }
 let items = null // índice de la base local
 let indexCount = -1
 let lastQuery = null
+let gameSort = null // {col, dir}: 1 = primer clic, -1 = segundo; null = normal (más recientes primero)
+
+// Orden de cada columna de "Partidas de mi base" en el primer clic (el segundo lo invierte).
+// Los datos que faltan (Elo, fecha, torneo) van siempre al final.
+const RES_ORDER = { '1-0': 0, '½-½': 1, '0-1': 2 }
+const SORTS = {
+  r: { get: (g) => RES_ORDER[g.r] ?? null, cmp: (a, b) => a - b, title: '1-0 primero' },
+  w: { get: (g) => g.w || null, cmp: (a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }), title: 'de la A a la Z' },
+  b: { get: (g) => g.b || null, cmp: (a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }), title: 'de la A a la Z' },
+  we: { get: (g) => g.we || null, cmp: (a, b) => b - a, desc: true, title: 'mayor Elo primero' },
+  be: { get: (g) => g.be || null, cmp: (a, b) => b - a, desc: true, title: 'mayor Elo primero' },
+  ev: { get: (g) => g.ev || null, cmp: (a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }), title: 'de la A a la Z' },
+  d: { get: (g) => g.d || null, cmp: (a, b) => (a < b ? -1 : a > b ? 1 : 0), title: 'más antiguas primero' },
+  ply: { get: (g) => g.ply || null, cmp: (a, b) => a - b, title: 'menos jugadas primero' },
+}
+
+function sortGames(games) {
+  if (!gameSort) return games
+  const { get, cmp } = SORTS[gameSort.col]
+  const dir = gameSort.dir
+  return games.map((g) => [get(g), g]).sort(([a], [b]) => (a == null ? (b == null ? 0 : 1) : b == null ? -1 : dir * cmp(a, b))).map(([, g]) => g)
+}
+
+function paintSort() {
+  root.querySelectorAll('.st-gt th[data-sort]').forEach((th) => {
+    const on = gameSort?.col === th.dataset.sort
+    const up = on && (gameSort.dir === 1) !== Boolean(SORTS[th.dataset.sort].desc)
+    th.dataset.dir = on ? (up ? 'a' : 'b') : ''
+    th.setAttribute('aria-sort', on ? (up ? 'ascending' : 'descending') : 'none')
+    th.title = on && gameSort.dir === 1 ? 'Pulsa para invertir el orden' : on ? 'Pulsa para volver al orden normal' : `Ordenar: ${SORTS[th.dataset.sort].title}`
+  })
+}
 
 const tab = () => tabs[active]
 const $ = (s) => root.querySelector(s)
@@ -287,6 +319,17 @@ export function init(el) {
   root.querySelectorAll('.st-color button').forEach((b) => b.addEventListener('click', () => { prefs.color = b.dataset.c; save(); paintColor(); queryLocal() }))
   paintColor()
   $('.st-tt tbody').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-san]'); if (tr) playMove(tr.dataset.san) })
+  $('.st-gt thead').addEventListener('click', (e) => {
+    const th = e.target.closest('th[data-sort]')
+    if (!th) return
+    const col = th.dataset.sort
+    // Primer clic: orden de la columna; segundo: al revés; tercero: orden normal.
+    gameSort = gameSort?.col !== col ? { col, dir: 1 } : gameSort.dir === 1 ? { col, dir: -1 } : null
+    paintSort()
+    lastQuery = null
+    queryLocal()
+  })
+  paintSort()
   $('.st-gt tbody').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-id]'); if (tr) openFromBase(tr.dataset.id) })
 
   explorer = new ExplorerPanel($('#st-ex'), {
@@ -584,13 +627,14 @@ function queryLocal() {
     return
   }
   const sans = t.tree.sanLine(t.cur)
-  const key = JSON.stringify([sans, prefs.player, prefs.color, items.length])
+  const key = JSON.stringify([sans, prefs.player, prefs.color, items.length, gameSort])
   if (key === lastQuery) return
   lastQuery = key
   const r = queryLine(items, sans, { player: prefs.player, color: prefs.color })
   const filt = prefs.player ? ` · ${prefs.player}${prefs.color === 'w' ? ' (blancas)' : prefs.color === 'b' ? ' (negras)' : ''}` : ''
   $('#st-tree-sub').textContent = `${fmtN(r.total)} partidas${filt}`
-  $('#st-games-sub').textContent = `${fmtN(r.total)} en esta posición${filt} · más recientes primero`
+  const NAMES = { r: 'resultado', w: 'blancas', b: 'negras', we: 'Elo de blancas', be: 'Elo de negras', ev: 'torneo', d: 'fecha', ply: 'número de jugadas' }
+  $('#st-games-sub').textContent = `${fmtN(r.total)} en esta posición${filt} · ${gameSort ? `por ${NAMES[gameSort.col]}` : 'más recientes primero'}`
 
   tt.replaceChildren(...r.moves.slice(0, 40).map((m) => {
     const tr = document.createElement('tr'); tr.dataset.san = m.san
@@ -609,7 +653,7 @@ function queryLocal() {
   }))
   if (!r.moves.length) empty(tt, 3, r.deep ? 'Línea demasiado larga para el árbol (más de 60 medias jugadas).' : 'Ninguna partida de tu base sigue desde aquí.')
 
-  gt.replaceChildren(...r.games.slice(0, 200).map((g) => {
+  gt.replaceChildren(...sortGames(r.games).slice(0, 200).map((g) => {
     const tr = document.createElement('tr'); tr.dataset.id = g.id
     const cells = [
       [g.r === '½-½' ? '½-½' : g.r, 'st-res ' + (g.r === '1-0' ? 'w' : g.r === '0-1' ? 'l' : 'd')],
