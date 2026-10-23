@@ -9,6 +9,10 @@ const MAX_FILES = 300
 const files = new Map() // url -> Promise(JSON), los más usados se quedan en memoria
 let manifestP = null
 let manifestUrl = ''
+let manifestError = ''
+
+// Por qué no se pudo leer la base, en palabras para el usuario ('' si no hubo error).
+export const lastError = () => manifestError
 
 export function baseUrl() {
   const u = (settings.bigBaseUrl || '').trim() || 'base/'
@@ -22,7 +26,19 @@ export function manifest() {
   if (manifestUrl !== id) {
     manifestUrl = id
     files.clear()
-    manifestP = get(url).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+    manifestError = ''
+    const fail = (msg) => { manifestError = msg; manifestUrl = ''; return null }
+    const r2 = /\.r2\.cloudflarestorage\.com/.test(url)
+    manifestP = (r2 && (!settings.bigBaseKeyId || !settings.bigBaseSecret))
+      ? Promise.resolve(fail('Faltan el ID de clave y la clave secreta del token de solo lectura de R2 en Ajustes.'))
+      : get(url).then(async (r) => {
+        if (r.ok) return r.json().catch(() => fail('El archivo manifest.json de esa dirección no es válido.'))
+        if (r.status === 403 || r.status === 401) return fail(`R2 rechazó la clave (${r.status}). Revisa el ID de clave y la clave secreta, y que el token tenga permiso de lectura sobre ese bucket.`)
+        if (r.status === 404) return fail('No hay manifest.json en esa dirección (404). Revisa el nombre del bucket y que la carpeta sea la que contiene manifest.json.')
+        return fail(`El servidor respondió con un error ${r.status}.`)
+      }).catch(() => fail(r2
+        ? 'El navegador bloqueó la petición. Casi siempre es la regla CORS del bucket (Settings ▸ CORS Policy con https://totoelpollo09.github.io) o la dirección mal escrita.'
+        : 'No se pudo conectar con esa dirección.'))
   }
   return manifestP
 }
@@ -78,7 +94,7 @@ async function readJson(path) {
 // Jugadas desde una posición, con el mismo formato que el explorador de Lichess para reutilizar su panel.
 export async function explore(fen) {
   const m = await manifest()
-  if (!m) throw new Error(`No hay base grande en ${baseUrl()}. Mira la página Base de datos.`)
+  if (!m) throw new Error(manifestError ? `No se pudo leer la base grande: ${manifestError}` : `No hay base grande en ${baseUrl()}. Mira la página Base de datos.`)
   const [h1, h2] = positionHash(fenKey(fen))
   const shard = await readJson(`pos/${shardOf(h1).toString(16).padStart(3, '0')}.json.gz`)
   const rec = shard?.[`${h1.toString(36)}.${h2.toString(36)}`]

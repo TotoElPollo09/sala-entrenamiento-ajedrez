@@ -1,6 +1,6 @@
 // Página Studio: mesa de análisis al estilo ChessMonitor Studio.
-// Varios tableros en pestañas, notación con variantes y comentarios, partidas de la base local que pasan por la posición,
-// árbol de aperturas de la base local (filtrable por jugador y color), explorador de Lichess y Stockfish con varias líneas.
+// Varios tableros en pestañas, notación con variantes y comentarios, partidas y árbol de "mi base" (la base grande de R2 si está
+// configurada, si no la base local del navegador), explorador de Lichess y Stockfish con varias líneas.
 /* global d3 */
 import { Chessboard, COLOR, INPUT_EVENT_TYPE, BORDER_TYPE } from '../vendor/cm-chessboard/src/Chessboard.js'
 import { Markers, MARKER_TYPE } from '../vendor/cm-chessboard/src/extensions/markers/Markers.js'
@@ -14,6 +14,7 @@ import { countGames, getGame } from './db.js'
 import { GameTree, NAGS, parsePgn, splitPgn, treeFromGame } from './studio-tree.js'
 import { loadIndex, resetIndex, queryLine, continuation } from './studio-index.js'
 import { Dock } from './dock.js'
+import * as bigbase from './bigbase.js'
 
 const ASSETS = new URL('../vendor/cm-chessboard/assets/', import.meta.url).href
 const KEY = 'ajedrez-web:studio'
@@ -172,6 +173,10 @@ let tabs = [] // {tree, cur, o}
 let active = 0
 let prefs = { engineOn: true, lines: 3, depth: 22, player: '', color: 'any' }
 let items = null // índice de la base local
+let big = null // datos de la base grande (R2) si está configurada: entonces el árbol y las partidas salen de ella
+let bigReq = 0
+const playerCache = new Map() // jugador -> sus últimas partidas de la base grande, en el formato del índice local
+const BIG_PLAYER_GAMES = 200
 let indexCount = -1
 let lastQuery = null
 let gameSort = null // {col, dir}: 1 = primer clic, -1 = segundo; null = normal (más recientes primero)
@@ -316,6 +321,17 @@ export function init(el) {
   // Árbol de la base local
   $('#st-player').value = prefs.player
   $('#st-player').addEventListener('change', (e) => { prefs.player = e.target.value.trim(); save(); queryLocal() })
+  // Con la base grande, sugerencias de nombres mientras se escribe (mínimo 3 letras).
+  let suggestTimer = null
+  $('#st-player').addEventListener('input', (e) => {
+    clearTimeout(suggestTimer)
+    const q = e.target.value.trim()
+    if (!big || q.length < 3) return
+    suggestTimer = setTimeout(async () => {
+      const found = await bigbase.findPlayers(q).catch(() => [])
+      $('#st-players').replaceChildren(...found.slice(0, 30).map((p) => { const o = document.createElement('option'); o.value = p.name; o.label = `${fmtN(p.ids.length)} partidas`; return o }))
+    }, 300)
+  })
   root.querySelectorAll('.st-color button').forEach((b) => b.addEventListener('click', () => { prefs.color = b.dataset.c; save(); paintColor(); queryLocal() }))
   paintColor()
   $('.st-tt tbody').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-san]'); if (tr) playMove(tr.dataset.san) })
@@ -576,18 +592,22 @@ function openPgnTab(pgn, { keepPosition = false } = {}) {
 }
 
 async function openFromBase(id) {
-  const g = await getGame(id)
+  let g
+  try { g = id.startsWith('base:') ? await bigbase.fullGame(id) : await getGame(id) } catch (e) { msg(e.message); return }
   if (!g) return
-  const sans = tab().tree.sanLine(tab().cur)
+  const here = tab().cur.fen.split(' ').slice(0, 4).join(' ')
   const tree = treeFromGame(g)
+  // Se abre en la posición que se estaba mirando (aunque la partida llegara a ella con otro orden de jugadas).
   let at = tree.root
-  for (let i = 0; i < sans.length && at.children[0]; i++) at = at.children[0]
+  for (let n = tree.root; n; n = n.children[0]) if (n.fen.split(' ').slice(0, 4).join(' ') === here) { at = n; break }
   openTab(newTab(tree, at))
 }
 
 // ---- Base local: partidas y árbol de la posición ----
 
 async function refreshIndex() {
+  big = await bigbase.manifest()
+  if (big) { lastQuery = null; queryLocal(); return }
   const n = await countGames().catch(() => 0)
   if (n === indexCount && items) return
   indexCount = n
@@ -614,6 +634,7 @@ function queryLocal() {
   const gt = $('.st-gt tbody')
   const empty = (tb, cols, text) => { tb.innerHTML = ''; const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = cols; td.className = 'muted'; td.innerHTML = text; tr.appendChild(td); tb.appendChild(tr) }
   const t = tab()
+  if (big) { queryBig(); return }
   if (indexCount === 0) {
     const txt = 'Tu base está vacía. Importa partidas en <a href="#database">Base de datos</a> (TWIC, ChessBase, tus torneos) y aparecerán aquí.'
     empty(tt, 3, txt); empty(gt, 8, txt)
@@ -633,8 +654,23 @@ function queryLocal() {
   const r = queryLine(items, sans, { player: prefs.player, color: prefs.color })
   const filt = prefs.player ? ` · ${prefs.player}${prefs.color === 'w' ? ' (blancas)' : prefs.color === 'b' ? ' (negras)' : ''}` : ''
   $('#st-tree-sub').textContent = `${fmtN(r.total)} partidas${filt}`
-  const NAMES = { r: 'resultado', w: 'blancas', b: 'negras', we: 'Elo de blancas', be: 'Elo de negras', ev: 'torneo', d: 'fecha', ply: 'número de jugadas' }
-  $('#st-games-sub').textContent = `${fmtN(r.total)} en esta posición${filt} · ${gameSort ? `por ${NAMES[gameSort.col]}` : 'más recientes primero'}`
+  $('#st-games-sub').textContent = `${fmtN(r.total)} en esta posición${filt} · ${sortLabel('más recientes primero')}`
+  paintResults(r, sans)
+}
+
+const SORT_NAMES = { r: 'resultado', w: 'blancas', b: 'negras', we: 'Elo de blancas', be: 'Elo de negras', ev: 'torneo', d: 'fecha', ply: 'número de jugadas' }
+const sortLabel = (normal) => (gameSort ? `por ${SORT_NAMES[gameSort.col]}` : normal)
+
+function emptyRow(tb, cols, text) {
+  tb.innerHTML = ''
+  const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = cols; td.className = 'muted'; td.innerHTML = text; tr.appendChild(td); tb.appendChild(tr)
+}
+
+// Pinta el árbol ({moves:[{san,n,w,d,l}]}) y la lista de partidas ({games:[item]}) de la posición.
+function paintResults(r, sans) {
+  const tt = $('.st-tt tbody')
+  const gt = $('.st-gt tbody')
+  const empty = emptyRow
 
   tt.replaceChildren(...r.moves.slice(0, 40).map((m) => {
     const tr = document.createElement('tr'); tr.dataset.san = m.san
@@ -645,7 +681,7 @@ function queryLocal() {
     const bar = document.createElement('div'); bar.className = 'wdl'
     ;[[m.w, 'wh'], [m.d, 'd'], [m.l, 'bl']].forEach(([k, c]) => { const s = document.createElement('div'); s.className = c; s.style.flex = k; bar.appendChild(s) })
     const nums = document.createElement('span'); nums.className = 'st-nums'
-    nums.innerHTML = `<b class="w">${m.w}</b> / <b class="d">${m.d}</b> / <b class="l">${m.l}</b>`
+    nums.innerHTML = `<b class="w">${fmtN(m.w)}</b> / <b class="d">${fmtN(m.d)}</b> / <b class="l">${fmtN(m.l)}</b>`
     wrap.append(bar, nums)
     c3.appendChild(wrap)
     tr.append(c1, c2, c3)
@@ -658,12 +694,97 @@ function queryLocal() {
     const cells = [
       [g.r === '½-½' ? '½-½' : g.r, 'st-res ' + (g.r === '1-0' ? 'w' : g.r === '0-1' ? 'l' : 'd')],
       [g.w, 'st-name'], [g.we || '', 'n'], [g.b, 'st-name'], [g.be || '', 'n'], [g.ev, 'st-ev hide-narrow'], [g.d, 'st-date'],
-      [numbered(sans, continuation(g, sans)), 'st-cont hide-narrow'],
+      [numbered(sans, g.cont || continuation(g, sans)), 'st-cont hide-narrow'],
     ]
     for (const [txt, cls] of cells) { const td = document.createElement('td'); td.className = cls; td.textContent = txt; tr.appendChild(td) }
     return tr
   }))
-  if (!r.games.length) empty(gt, 8, 'Ninguna partida de tu base llega a esta posición (con este orden de jugadas).')
+  if (!r.games.length) empty(gt, 8, r.noGames || 'Ninguna partida de tu base llega a esta posición (con este orden de jugadas).')
+}
+
+// ---- Base grande (R2): árbol por posición (con transposiciones) y partidas destacadas ----
+
+const bigItem = (g, extra) => ({
+  id: g.id, w: g.white, b: g.black, wl: g.white.toLowerCase(), bl: g.black.toLowerCase(), we: g.whiteElo, be: g.blackElo,
+  r: g.result, d: g.date, ev: g.event, ply: g.moves?.length || 0, ...extra,
+})
+
+// Jugadas que siguen en la partida desde la posición fen (aunque llegara a ella con otro orden).
+function contFrom(g, fen, max = 8) {
+  const here = fen.split(' ').slice(0, 4).join(' ')
+  const c = new Chess()
+  for (let i = 0; i <= g.moves.length; i++) {
+    if (c.fen().split(' ').slice(0, 4).join(' ') === here) return g.moves.slice(i, i + max)
+    try { c.move(g.moves[i]) } catch { break }
+  }
+  return []
+}
+
+// Últimas partidas del jugador en la base grande, con jugadas, para construir su árbol.
+function playerItems(name, onProgress) {
+  const k = name.toLowerCase()
+  if (!playerCache.has(k)) {
+    const p = (async () => {
+      const found = await bigbase.findPlayers(name)
+      const pick = found.find((x) => x.name.toLowerCase() === k) || found[0]
+      if (!pick) return { name, items: [], total: 0 }
+      const ids = pick.ids.slice(0, BIG_PLAYER_GAMES)
+      let done = 0
+      const games = await Promise.all(ids.map((id) => bigbase.fullGame(id).then((g) => { onProgress?.(++done, ids.length); return g }).catch(() => null)))
+      const items = games.filter(Boolean).map((g) => bigItem(g, { line: g.moves.slice(0, 60).join(' ') }))
+      return { name: pick.name, items, total: pick.ids.length }
+    })()
+    p.catch(() => playerCache.delete(k))
+    playerCache.set(k, p)
+  }
+  return playerCache.get(k)
+}
+
+async function queryBig() {
+  const t = tab()
+  const sans = t.tree.sanLine(t.cur)
+  const fen = t.cur.fen
+  const key = JSON.stringify(['big', fen, sans, prefs.player, prefs.color, gameSort])
+  if (key === lastQuery) return
+  lastQuery = key
+  const id = ++bigReq
+  const name = big.nombre
+  try {
+    if (prefs.player) {
+      if (!t.tree.standardStart) { emptyRow($('.st-tt tbody'), 3, 'El filtro de jugador busca desde la posición inicial.'); emptyRow($('.st-gt tbody'), 8, ''); return }
+      $('#st-tree-sub').textContent = 'cargando sus partidas…'
+      const pl = await playerItems(prefs.player, (k, n) => { if (id === bigReq) $('#st-games-sub').textContent = `cargando partidas de ${prefs.player}… ${k} / ${n}` })
+      if (id !== bigReq) return
+      const r = queryLine(pl.items, sans, { player: pl.name, color: prefs.color })
+      const col = prefs.color === 'w' ? ' (blancas)' : prefs.color === 'b' ? ' (negras)' : ''
+      const of = pl.total > pl.items.length ? ` de sus últimas ${fmtN(pl.items.length)}` : ''
+      $('#st-tree-sub').textContent = pl.items.length ? `${fmtN(r.total)} partidas de ${pl.name}${col}${of}` : `${name}: ningún jugador empieza por "${prefs.player}"`
+      $('#st-games-sub').textContent = `${fmtN(r.total)} en esta posición · ${pl.name}${col} · ${sortLabel('más recientes primero')}`
+      paintResults(r, sans)
+      return
+    }
+    $('#st-tree-sub').textContent = `${name} · cargando…`
+    const ex = await bigbase.explore(fen)
+    if (id !== bigReq) return
+    const total = ex.white + ex.draws + ex.black
+    const moves = ex.moves.map((m) => ({ san: m.san, n: m.white + m.draws + m.black, w: m.white, d: m.draws, l: m.black }))
+    $('#st-tree-sub').textContent = `${name} · ${fmtN(total)} partidas`
+    // Partidas destacadas (las de mayor Elo medio) con sus jugadas desde aquí.
+    const full = await Promise.all(ex.topGames.map((g) => bigbase.fullGame(g.id).catch(() => null)))
+    if (id !== bigReq) return
+    const games = full.filter(Boolean).map((g) => bigItem(g, { cont: contFrom(g, fen) }))
+    $('#st-games-sub').textContent = `${name} · ${fmtN(games.length)} partidas destacadas de ${fmtN(total)} (mayor Elo) · ${sortLabel('mayor Elo primero')}`
+    paintResults({
+      moves, games, total,
+      noGames: total ? '' : `Esta posición no está en ${name} (el árbol llega hasta la jugada ${Math.floor(big.maxJugadas / 2)} y a posiciones con al menos ${big.minPartidas} partidas).`,
+    }, sans)
+    if (!moves.length) emptyRow($('.st-tt tbody'), 3, total ? 'Ninguna partida sigue desde aquí.' : `Esta posición no está en ${name}.`)
+  } catch (e) {
+    if (id !== bigReq) return
+    lastQuery = null
+    $('#st-tree-sub').textContent = ''; $('#st-games-sub').textContent = ''
+    emptyRow($('.st-tt tbody'), 3, e.message); emptyRow($('.st-gt tbody'), 8, e.message)
+  }
 }
 
 function numbered(before, sans) {

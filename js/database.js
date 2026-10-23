@@ -93,7 +93,9 @@ async function bigStatus() {
   const m = await bigbase.manifest()
   root.querySelector('#g-status').textContent = m
     ? `${m.nombre}: ${fmtN(m.partidas)} partidas y ${fmtN(m.posiciones)} posiciones (creada el ${m.creada}). Se consulta por partes: también la tienes en el explorador de Análisis y Studio, pestaña "Mi base".`
-    : `No hay base grande en ${bigbase.baseUrl()}. Créala con tools/construir-base.mjs (instrucciones en el README) y pon su dirección en Ajustes.`
+    : bigbase.lastError() && (bigbase.baseUrl() !== 'base/')
+      ? `No se pudo leer la base grande en ${bigbase.baseUrl()}: ${bigbase.lastError()}`
+      : `No hay base grande en ${bigbase.baseUrl()}. Créala con tools/construir-base.mjs (instrucciones en el README) y pon su dirección en Ajustes.`
 }
 
 function initBig() {
