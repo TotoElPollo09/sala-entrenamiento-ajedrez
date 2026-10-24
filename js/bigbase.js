@@ -96,20 +96,22 @@ function readJson(path) {
 }
 
 // Jugadas desde una posición, con el mismo formato que el explorador de Lichess para reutilizar su panel.
-export async function explore(fen) {
+// topGames trae las cabeceras de las primeras `games` destacadas; topIds, todas las destacadas (de mayor a menor Elo).
+export async function explore(fen, { games = 8 } = {}) {
   const m = await manifest()
   if (!m) throw new Error(manifestError ? `No se pudo leer la base grande: ${manifestError}` : `No hay base grande en ${baseUrl()}. Mira la página Base de datos.`)
   const [h1, h2] = positionHash(fenKey(fen))
   const shard = await readJson(`pos/${shardOf(h1).toString(16).padStart(3, '0')}.json.gz`)
   const rec = shard?.[`${h1.toString(36)}.${h2.toString(36)}`]
-  const out = { white: 0, draws: 0, black: 0, moves: [], topGames: [], opening: null }
+  const out = { white: 0, draws: 0, black: 0, moves: [], topGames: [], topIds: [], opening: null }
   if (!rec) return out
   const [moves, top] = rec
   for (const [san, , w, d, l, avg] of moves) {
     out.moves.push({ san, white: w, draws: d, black: l, averageRating: avg || null })
     out.white += w; out.draws += d; out.black += l
   }
-  out.topGames = (await headers(top)).map((g) => ({
+  out.topIds = top
+  out.topGames = (games ? await headers(top.slice(0, games)) : []).map((g) => ({
     id: g.id, white: { name: g.white, rating: g.whiteElo || '?' }, black: { name: g.black, rating: g.blackElo || '?' },
     winner: g.result === '1-0' ? 'white' : g.result === '0-1' ? 'black' : null, year: g.date.slice(0, 4),
   }))
