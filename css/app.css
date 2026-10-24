@@ -89,6 +89,23 @@ a { color: var(--accent-text); }
 .cm-chessboard.default .board .square.black { fill: var(--sq-dark); }
 .cm-chessboard.default .coordinates .coordinate.white { fill: #5f7682; font-weight: 600; }
 .cm-chessboard.default .coordinates .coordinate.black { fill: #f4f6f7; font-weight: 600; }
+/* Flechas y casillas dibujadas con el botón derecho (colores como en chess.com) */
+.cm-chessboard .arrow-user .arrow-line { stroke-linecap: butt; opacity: 0.8; }
+.cm-chessboard .arrow-user .arrow-head { opacity: 0.8; }
+.cm-chessboard .arrow-user-preview .arrow-line, .cm-chessboard .arrow-user-preview .arrow-head { opacity: 0.5; }
+.cm-chessboard .arrow-user-orange .arrow-line { stroke: #ffaa00; }
+.cm-chessboard .arrow-user-orange .arrow-head { fill: #ffaa00; }
+.cm-chessboard .arrow-user-red .arrow-line { stroke: #f8553f; }
+.cm-chessboard .arrow-user-red .arrow-head { fill: #f8553f; }
+.cm-chessboard .arrow-user-blue .arrow-line { stroke: #48c1f9; }
+.cm-chessboard .arrow-user-blue .arrow-head { fill: #48c1f9; }
+.cm-chessboard .arrow-user-green .arrow-line { stroke: #9fcf3f; }
+.cm-chessboard .arrow-user-green .arrow-head { fill: #9fcf3f; }
+.cm-chessboard .markers .marker.marker-user { opacity: 0.6; }
+.cm-chessboard .markers .marker.marker-user-orange { fill: #ffaa00; }
+.cm-chessboard .markers .marker.marker-user-red { fill: #eb6150; }
+.cm-chessboard .markers .marker.marker-user-blue { fill: #48c1f9; }
+.cm-chessboard .markers .marker.marker-user-green { fill: #9fcf3f; }
 .board svg { border-radius: 6px; }
 
 .page { display: grid; gap: 20px; }
