@@ -25,6 +25,7 @@ const fig = (san) => san.replace(/[KQRBN]/g, (c) => FIG[c])
 const fmtN = d3.format(',')
 
 const I = {
+  reset: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
   first: '<path d="M6 5v14M18 6l-8 6 8 6z"/>', prev: '<path d="M15 6l-6 6 6 6"/>', next: '<path d="M9 6l6 6-6 6"/>', last: '<path d="M18 5v14M6 6l8 6-8 6z"/>',
   flip: '<path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3"/>', up: '<path d="M12 19V5M5 12l7-7 7 7"/>',
   cut: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/>',
@@ -39,15 +40,14 @@ const svg = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${I[k]}</svg>`
 const tool = (act, icon, label) => `<button type="button" class="st-tb" data-act="${act}" title="${label}" aria-label="${label}">${svg(icon)}</button>`
 
 const HTML = `
-<div class="dk-toolbar">
-  <span class="dk-hint">Arrastra las pestañas para mover los paneles. Suéltalas sobre otra pestaña para agruparlas o en el borde de un panel para dividirlo.</span>
-  <span class="dk-closed" id="st-closed"></span>
-  <button class="btn small" id="st-reset" type="button">Restablecer diseño</button>
-</div>
 <div class="st-dock" id="st-dock"></div>
 <div id="st-panels">
   <div class="st-pn st-pn-board" data-pn="board">
-    <div class="st-tabs" role="tablist" aria-label="Tableros"></div>
+    <div class="st-boardbar">
+      <div class="st-tabs" role="tablist" aria-label="Tableros"></div>
+      <span class="dk-closed" id="st-closed"></span>
+      <button type="button" class="st-tb" id="st-reset" title="Restablecer el diseño de los paneles" aria-label="Restablecer el diseño de los paneles">${svg('reset')}</button>
+    </div>
     <div class="st-board-area"><div class="board" id="st-board"></div></div>
   </div>
   <div class="st-pn" data-pn="notation">
@@ -112,8 +112,8 @@ const PANELS = {
 }
 const stack = (id) => ({ t: 'stack', p: [id], a: id })
 const DEFAULT_LAYOUT = {
-  t: 'row', s: [44, 56], c: [
-    { t: 'col', s: [66, 34], c: [stack('board'), stack('notation')] },
+  t: 'row', s: [48, 52], c: [
+    { t: 'col', s: [72, 28], c: [stack('board'), stack('notation')] },
     { t: 'col', s: [32, 40, 28], c: [stack('games'), { t: 'row', s: [50, 50], c: [stack('tree'), stack('lichess')] }, stack('engine')] },
   ],
 }
