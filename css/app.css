@@ -421,3 +421,11 @@ body[data-page="studio"] .foot { display: none; }
 .st-gt th[data-sort]::after { content: ''; display: inline-block; width: 1em; margin-left: 3px; color: var(--accent); }
 .st-gt th[data-dir="a"]::after { content: '▲'; } .st-gt th[data-dir="b"]::after { content: '▼'; }
 .st-gt th[data-dir="a"], .st-gt th[data-dir="b"] { color: var(--accent-text); }
+
+/* Táctica */
+.tz-turn { margin: 0; font-weight: 700; font-size: 1.05rem; }
+.tz-fb { margin: 0; min-height: 1.5em; font-weight: 600; }
+.tz-fb.good { color: var(--good); } .tz-fb.bad { color: var(--bad); }
+.tz-card .line { white-space: normal; }
+td.nowrap { white-space: nowrap; }
+.table td.n .btn { font-family: var(--font-body); }
