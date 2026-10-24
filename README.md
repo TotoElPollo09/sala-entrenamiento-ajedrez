@@ -46,7 +46,7 @@ Para una base enorme (por ejemplo 14 millones de partidas exportadas de ChessBas
    node tools/construir-base.mjs "C:\ruta\a\tu-base.pgn" --salida base --nombre "Mi base"
    ```
 
-   Opciones útiles: `--max-jugadas 30` (medias jugadas del árbol, por defecto 30), `--min-partidas 2` (posiciones con menos partidas se omiten), `--elo 2000`, `--desde 1990`, `--hasta 2026`. Con 14 millones de partidas tarda del orden de una a tres horas y necesita unos 20 GB libres de disco mientras trabaja (se borran al terminar).
+   Opciones útiles: `--max-jugadas 30` (medias jugadas del árbol, por defecto 30), `--min-partidas 2` (posiciones con menos partidas se omiten), `--destacadas 300` (partidas de mayor Elo que se guardan por posición), `--elo 2000`, `--desde 1990`, `--hasta 2026`. Con 14 millones de partidas tarda del orden de una a tres horas y necesita unos 20 GB libres de disco mientras trabaja (se borran al terminar).
 3. Publica la carpeta `base` resultante (si pesa menos de ~900 MB cabe en GitHub Pages; si no, en un alojamiento de archivos estáticos con CORS) y pon su dirección en **Ajustes ▸ Base grande**. Si la dejas en la carpeta `base/` de esta misma web no hace falta poner nada.
 
 ### Base privada en Cloudflare R2

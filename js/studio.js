@@ -177,6 +177,7 @@ let prefs = { engineOn: true, lines: 3, depth: 22, player: '', color: 'any' }
 let items = null // índice de la base local
 let big = null // datos de la base grande (R2) si está configurada: entonces el árbol y las partidas salen de ella
 let bigReq = 0
+const CONT_GAMES = 30 // partidas destacadas a las que se les cargan las jugadas para la columna "Jugadas"
 const playerCache = new Map() // jugador -> todas sus partidas de la base grande, en el formato del índice local
 let indexCount = -1
 let lastQuery = null
@@ -783,21 +784,36 @@ async function queryBig() {
       return
     }
     $('#st-tree-sub').textContent = `${name} · cargando…`
-    const ex = await bigbase.explore(fen)
+    const ex = await bigbase.explore(fen, { games: 0 })
     if (id !== bigReq) return
     const total = ex.white + ex.draws + ex.black
     const moves = ex.moves.map((m) => ({ san: m.san, n: m.white + m.draws + m.black, w: m.white, d: m.draws, l: m.black }))
     $('#st-tree-sub').textContent = `${name} · ${fmtN(total)} partidas`
-    // Partidas destacadas (las de mayor Elo medio) con sus jugadas desde aquí.
-    const full = await Promise.all(ex.topGames.map((g) => bigbase.fullGame(g.id).catch(() => null)))
+    // Partidas destacadas (las de mayor Elo medio): las cabeceras llegan por tandas y la lista se va completando;
+    // las jugadas desde aquí se cargan para las primeras CONT_GAMES (el resto, al abrirlas).
+    const ids = ex.topIds
+    const games = []
+    const paint = (loading) => {
+      $('#st-games-sub').textContent = `${name} · ${fmtN(ids.length)} partidas destacadas de ${fmtN(total)} (mayor Elo) · ${sortLabel('mayor Elo primero')}${loading ? ` · cargando ${fmtN(games.length)}…` : ''}`
+      paintResults({
+        moves, games, total,
+        noGames: total ? '' : `Esta posición no está en ${name} (el árbol llega hasta la jugada ${Math.floor(big.maxJugadas / 2)} y a posiciones con al menos ${big.minPartidas} partidas).`,
+      }, sans)
+      if (!moves.length) emptyRow($('.st-tt tbody'), 3, total ? 'Ninguna partida sigue desde aquí.' : `Esta posición no está en ${name}.`)
+    }
+    paint(ids.length > 0)
+    for (let i = 0; i < ids.length; i += 50) {
+      const part = await bigbase.headers(ids.slice(i, i + 50))
+      if (id !== bigReq) return
+      games.push(...part.map((g) => bigItem(g, { cont: [] })))
+      paint(i + 50 < ids.length)
+    }
+    await Promise.all(games.slice(0, CONT_GAMES).map(async (it) => {
+      const g = await bigbase.fullGame(it.id).catch(() => null)
+      if (g) { it.cont = contFrom(g, fen); it.ply = g.moves.length }
+    }))
     if (id !== bigReq) return
-    const games = full.filter(Boolean).map((g) => bigItem(g, { cont: contFrom(g, fen) }))
-    $('#st-games-sub').textContent = `${name} · ${fmtN(games.length)} partidas destacadas de ${fmtN(total)} (mayor Elo) · ${sortLabel('mayor Elo primero')}`
-    paintResults({
-      moves, games, total,
-      noGames: total ? '' : `Esta posición no está en ${name} (el árbol llega hasta la jugada ${Math.floor(big.maxJugadas / 2)} y a posiciones con al menos ${big.minPartidas} partidas).`,
-    }, sans)
-    if (!moves.length) emptyRow($('.st-tt tbody'), 3, total ? 'Ninguna partida sigue desde aquí.' : `Esta posición no está en ${name}.`)
+    paint(false)
   } catch (e) {
     if (id !== bigReq) return
     lastQuery = null

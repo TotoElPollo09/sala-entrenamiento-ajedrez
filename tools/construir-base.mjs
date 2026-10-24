@@ -10,6 +10,7 @@
 //   --nombre TEXTO      nombre que se ve en la web (por defecto: el del primer archivo)
 //   --max-jugadas N     medias jugadas que se indexan por partida (por defecto: 30)
 //   --min-partidas N    una posición entra en el índice si la jugaron al menos N partidas (por defecto: 2)
+//   --destacadas N      partidas destacadas (mayor Elo) que se guardan por posición (por defecto: 300)
 //   --elo N             guarda solo partidas con los dos jugadores de al menos N de Elo
 //   --desde AÑO / --hasta AÑO   guarda solo partidas de esos años
 //   --hilos N           hilos de cálculo (por defecto: núcleos del ordenador menos 1)
@@ -32,7 +33,6 @@ import { parsePgnFile, importFilter } from '../js/db.js'
 import { positionHash, shardOf, playerPrefix, SHARD_BITS, CHUNK } from '../js/bigbase-format.js'
 
 const BUCKETS = 256 // archivos temporales; cada uno se reparte luego en 16 trozos finales
-const TOP_GAMES = 6
 
 if (isMainThread) await main()
 else worker()
@@ -90,7 +90,7 @@ function worker() {
 // ---------- hilo principal ----------
 async function main() {
   const args = process.argv.slice(2)
-  const opt = { salida: 'base', 'max-jugadas': '30', 'min-partidas': '2', hilos: String(Math.max(1, os.cpus().length - 1)) }
+  const opt = { salida: 'base', 'max-jugadas': '30', 'min-partidas': '2', destacadas: '300', hilos: String(Math.max(1, os.cpus().length - 1)) }
   const files = []
   for (let i = 0; i < args.length; i++) {
     if (args[i].startsWith('--')) opt[args[i].slice(2)] = args[++i]
@@ -113,6 +113,7 @@ async function main() {
   const out = path.resolve(opt.salida)
   const maxPly = Number(opt['max-jugadas'])
   const minGames = Number(opt['min-partidas'])
+  const topGames = Math.max(1, Number(opt.destacadas) || 300)
   const keep = importFilter({ minElo: Number(opt.elo) || 0, fromYear: Number(opt.desde) || 0, toYear: Number(opt.hasta) || 0 })
   for (const d of ['pos', 'cab', 'mov', 'jug']) { fs.rmSync(path.join(out, d), { recursive: true, force: true }); fs.mkdirSync(path.join(out, d), { recursive: true }) }
   const tmpRoot = fs.mkdtempSync(path.join(out, '.tmp-'))
@@ -204,14 +205,7 @@ async function main() {
         if (r === 'w') m[2]++; else if (r === 'd') m[3]++; else if (r === 'l') m[4]++
         const elo = Number(eloS)
         if (elo) { m[5] += elo; m[6]++ }
-        // Partidas destacadas: las de mayor Elo medio.
-        const id = Number(idS)
-        if (p.top.length < TOP_GAMES) p.top.push([elo, id])
-        else {
-          let lo = 0
-          for (let i = 1; i < p.top.length; i++) if (p.top[i][0] < p.top[lo][0]) lo = i
-          if (elo > p.top[lo][0]) p.top[lo] = [elo, id]
-        }
+        p.top.push(elo, Number(idS)) // pares Elo medio, partida; al final se quedan las de mayor Elo
       }
       fs.rmSync(file)
     }
@@ -221,7 +215,11 @@ async function main() {
         if (p.n < minGames) continue
         // [san, partidas, blancas ganan, tablas, negras ganan, Elo medio]
         const moves = [...p.moves.values()].sort((a, c) => c[1] - a[1]).map((m) => [m[0], m[1], m[2], m[3], m[4], m[6] ? Math.round(m[5] / m[6]) : 0])
-        obj[key] = [moves, p.top.sort((a, c) => c[0] - a[0]).map((t) => t[1])]
+        // Partidas destacadas: las de mayor Elo medio (a igual Elo, las más nuevas en la base).
+        const top = []
+        for (let i = 0; i < p.top.length; i += 2) top.push([p.top[i], p.top[i + 1]])
+        top.sort((a, c) => c[0] - a[0] || c[1] - a[1])
+        obj[key] = [moves, top.slice(0, topGames).map((t) => t[1])]
         positions++
       }
       fs.writeFileSync(path.join(out, 'pos', `${Number(s).toString(16).padStart(3, '0')}.json.gz`), zlib.gzipSync(JSON.stringify(obj)))
@@ -275,6 +273,7 @@ async function main() {
     jugadores: playerCount,
     maxJugadas: maxPly,
     minPartidas: minGames,
+    destacadas: topGames,
     trozo: CHUNK,
     creada: new Date().toISOString().slice(0, 10),
   }
