@@ -33,8 +33,9 @@ export async function fetchUser(username) {
 }
 
 // Descarga partidas de un usuario como objetos compactos. onProgress(n) se llama mientras llegan.
-export async function fetchUserGames(username, { max = 300, since = 0, perfType = '', color = '', rated = '', signal, onProgress } = {}) {
-  const p = new URLSearchParams({ moves: 'true', opening: 'true', clocks: 'false', evals: 'false', pgnInJson: 'false' })
+// evals: true añade el análisis de Lichess (game.analysis) a las partidas que lo tengan.
+export async function fetchUserGames(username, { max = 300, since = 0, perfType = '', color = '', rated = '', evals = false, signal, onProgress } = {}) {
+  const p = new URLSearchParams({ moves: 'true', opening: 'true', clocks: 'false', evals: String(evals), pgnInJson: 'false' })
   if (max) p.set('max', String(max))
   if (since) p.set('since', String(since))
   if (perfType) p.set('perfType', perfType)
@@ -112,6 +113,7 @@ export function fromLichess(g) {
     eco: g.opening?.eco || '',
     opening: g.opening?.name || '',
     moves: (g.moves || '').split(' ').filter(Boolean),
+    ...(g.analysis ? { analysis: g.analysis } : {}),
   }
 }
 

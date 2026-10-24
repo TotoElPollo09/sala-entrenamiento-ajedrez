@@ -82,7 +82,7 @@ export function init(el) {
     onMove: (san) => board.play(san),
     onGame: openPgn,
   })
-  on('open-game', (g) => openGame(g))
+  on('open-game', (g) => openGame(g, g.view)) // view: { ply, orientation } opcional
 }
 
 export function getBoard() { return board }
