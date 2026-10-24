@@ -4,6 +4,7 @@ import { Markers, MARKER_TYPE } from '../vendor/cm-chessboard/src/extensions/mar
 import { Arrows, ARROW_TYPE } from '../vendor/cm-chessboard/src/extensions/arrows/Arrows.js'
 import { PromotionDialog, PROMOTION_DIALOG_RESULT_TYPE } from '../vendor/cm-chessboard/src/extensions/promotion-dialog/PromotionDialog.js'
 import { Chess, DEFAULT_POSITION } from '../vendor/chess.js'
+import { enableAnnotations, clear as clearAnnotations, setProgramArrows } from './annotations.js'
 
 const ASSETS = new URL('../vendor/cm-chessboard/assets/', import.meta.url).href
 
@@ -27,6 +28,7 @@ export class StudyBoard {
       extensions: [{ class: Markers, props: { autoMarkers: MARKER_TYPE.frame } }, { class: Arrows }, { class: PromotionDialog }],
     })
     this.board.enableMoveInput((e) => this.#input(e))
+    enableAnnotations(this.board)
   }
 
   get fen() { return this.positions[this.ply] }
@@ -112,7 +114,9 @@ export class StudyBoard {
   reset() { this.loadMoves([]) }
 
   goto(ply) {
+    const before = this.fen
     this.ply = Math.max(0, Math.min(ply, this.moves.length))
+    if (this.fen !== before) clearAnnotations(this.board)
     this.board.setPosition(this.fen, true)
     this.board.removeMarkers?.(MARKER_TYPE.square)
     const last = this.moves[this.ply - 1]
@@ -135,8 +139,7 @@ export class StudyBoard {
   setOrientation(color) { this.board.setOrientation(color === 'b' ? COLOR.black : COLOR.white) }
 
   setArrows(list) {
-    this.board.removeArrows?.()
-    for (const a of list) this.board.addArrow?.(a.type || ARROW_TYPE.default, a.from, a.to)
+    setProgramArrows(this.board, list, ARROW_TYPE.default)
   }
 
   sanLine() { return this.moves.slice(0, this.ply).map((m) => m.san) }

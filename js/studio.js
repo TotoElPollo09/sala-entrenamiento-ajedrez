@@ -6,6 +6,7 @@ import { Chessboard, COLOR, INPUT_EVENT_TYPE, BORDER_TYPE } from '../vendor/cm-c
 import { Markers, MARKER_TYPE } from '../vendor/cm-chessboard/src/extensions/markers/Markers.js'
 import { Arrows, ARROW_TYPE } from '../vendor/cm-chessboard/src/extensions/arrows/Arrows.js'
 import { PromotionDialog, PROMOTION_DIALOG_RESULT_TYPE } from '../vendor/cm-chessboard/src/extensions/promotion-dialog/PromotionDialog.js'
+import { enableAnnotations, clear as clearAnnotations, setProgramArrows } from './annotations.js'
 import { Chess, DEFAULT_POSITION } from '../vendor/chess.js'
 import { uciToSan } from './board.js'
 import { sharedEngine, formatScore, whitePov } from './engine.js'
@@ -129,6 +130,7 @@ class StudioBoard {
       extensions: [{ class: Markers, props: { autoMarkers: MARKER_TYPE.frame } }, { class: Arrows }, { class: PromotionDialog }],
     })
     this.board.enableMoveInput((e) => this.#input(e))
+    enableAnnotations(this.board)
   }
 
   #input(event) {
@@ -151,6 +153,7 @@ class StudioBoard {
   }
 
   show(node) {
+    if (node.fen !== this.fen) clearAnnotations(this.board)
     this.fen = node.fen
     this.board.setPosition(node.fen, true)
     this.board.removeMarkers?.(MARKER_TYPE.square)
@@ -160,8 +163,7 @@ class StudioBoard {
   get orientation() { return this.board.getOrientation() === COLOR.black ? 'b' : 'w' }
   setOrientation(c) { this.board.setOrientation(c === 'b' ? COLOR.black : COLOR.white) }
   setArrows(list) {
-    this.board.removeArrows?.()
-    for (const a of list) this.board.addArrow?.(a.type || ARROW_TYPE.info, a.from, a.to)
+    setProgramArrows(this.board, list, ARROW_TYPE.info)
   }
 }
 

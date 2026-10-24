@@ -12,6 +12,8 @@ Web de entrenamiento de ajedrez para Johan y Mari. No necesita servidor propio n
 | Base de datos | Base grande (millones de partidas, ver abajo): busca partidas por jugador sin descargar la base. Además importa archivos PGN (partidas oficiales FIDE, TWIC, torneos o una base de ChessBase exportada a PGN) y busca por jugador, torneo o apertura. Con bases de millones de partidas, el filtro de importación (jugadores, ECO, Elo mínimo, años) guarda solo lo que vas a estudiar. |
 | Ajustes | Usuarios de Lichess, ID de la hoja, token de Lichess, dirección de la base grande y profundidad de Stockfish. |
 
+**Flechas y casillas** (en todos los tableros, como en chess.com): arrastra con el botón derecho para dibujar una flecha y haz clic derecho en una casilla para marcarla. Color normal naranja, con **Ctrl** rojo, con **Alt** azul y con **Mayús** verde. Repetirla con el mismo color la borra; un clic izquierdo en el tablero o cambiar de jugada lo borra todo.
+
 ## Antes de empezar
 
 1. **Comparte la hoja de Google** como "Cualquier persona con el enlace: lector". Sin eso el dashboard no puede leerla.
