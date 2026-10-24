@@ -41,3 +41,21 @@ function setTheme(t) {
 }
 document.getElementById('theme-btn').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'))
 if (document.documentElement.dataset.theme === 'light') setTheme('light')
+
+// Menú lateral plegable (solo iconos), recordado en este navegador.
+const MENU_KEY = 'ajedrez-web:menu'
+const menuBtn = document.getElementById('menu-btn')
+document.querySelectorAll('.tabs a').forEach((a) => { a.title = a.querySelector('.nl').textContent })
+function setMenu(mini) {
+  if (mini) document.documentElement.dataset.menu = 'mini'
+  else delete document.documentElement.dataset.menu
+  menuBtn.setAttribute('aria-expanded', String(!mini))
+  menuBtn.setAttribute('aria-label', mini ? 'Mostrar el menú' : 'Plegar el menú')
+  menuBtn.title = mini ? 'Mostrar menú' : ''
+  menuBtn.querySelector('span').textContent = mini ? 'Mostrar menú' : 'Plegar menú'
+  try { localStorage.setItem(MENU_KEY, mini ? 'mini' : 'full') } catch { /* sin almacenamiento */ }
+  // Los tableros y gráficos se recalculan con el nuevo ancho al terminar la animación.
+  setTimeout(() => window.dispatchEvent(new Event('resize')), 220)
+}
+menuBtn.addEventListener('click', () => setMenu(document.documentElement.dataset.menu !== 'mini'))
+if (document.documentElement.dataset.menu === 'mini') setMenu(true)
