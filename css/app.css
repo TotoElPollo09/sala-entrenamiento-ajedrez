@@ -356,12 +356,11 @@ body[data-page="studio"] .foot { display: none; }
 
 /* Paneles acoplables (pestañas que se arrastran, grupos y divisores) */
 #page-studio { grid-template-columns: minmax(0, 1fr); }
-.dk-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; min-height: 30px; }
-.dk-hint { color: var(--muted-mark); font-size: 12px; flex: 1 1 20rem; }
-.dk-closed { display: flex; gap: 6px; flex-wrap: wrap; }
+.dk-closed { display: flex; gap: 4px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.dk-closed .btn { padding: 2px 7px; font-size: 11.5px; white-space: nowrap; }
 .dk-closed .btn { display: inline-flex; align-items: center; gap: 4px; }
 .dk-closed svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
-.st-dock { height: max(560px, calc(100vh - 70px)); }
+.st-dock { height: max(560px, calc(100vh - 22px)); }
 .dk-root { height: 100%; display: flex; }
 .dk-root > * { flex: 1 1 0; }
 .dk-split { display: flex; min-width: 0; min-height: 0; }
@@ -393,8 +392,9 @@ body[data-page="studio"] .foot { display: none; }
 .pn-bar .sp-sub { margin-left: 0; }
 .pn-bar:not(.st-eh):has(> span:only-child:empty) { display: none; }
 .st-pn .st-scroll { flex: 1; min-height: 0; }
-.st-pn-board .st-tabs { display: flex; align-items: stretch; gap: 2px; padding: 0 4px; min-height: 32px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--line); flex: none; }
-.st-board-area { flex: 1; min-height: 0; display: grid; place-items: center; container-type: size; padding: 8px; }
+.st-boardbar { display: flex; align-items: center; gap: 4px; padding-right: 4px; border-bottom: 1px solid var(--line); flex: none; min-width: 0; }
+.st-pn-board .st-tabs { display: flex; align-items: stretch; gap: 2px; padding: 0 4px; min-height: 32px; overflow-x: auto; scrollbar-width: none; flex: 1; min-width: 0; }
+.st-board-area { flex: 1; min-height: 0; display: grid; place-items: center; container-type: size; padding: 4px; }
 .st-board-area .board { width: calc(min(100cqw, 100cqh) - 4px); max-width: none; flex: none; }
 .st-tf { flex-wrap: wrap; }
 .st-tf input { min-width: 8rem; }
@@ -404,7 +404,6 @@ body[data-page="studio"] .foot { display: none; }
 .st-pn .st-pv { overflow: auto; }
 
 @media (max-width: 900px) {
-  .dk-hint { display: none; }
   .st-dock { height: auto; }
   .dk-root, .dk-split { display: block; }
   .dk-split > :not(.dk-gutter), .dk-root > * { min-width: 0; }
