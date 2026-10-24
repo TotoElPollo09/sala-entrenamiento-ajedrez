@@ -66,7 +66,20 @@ a { color: var(--accent-text); }
 .tabs a[aria-current="page"] svg { color: var(--accent); }
 .tabs .ns { display: none; }
 .theme-btn { background: none; border: 0; cursor: pointer; font-size: 13px; width: 100%; }
-.content { margin-left: var(--side-w); min-height: 100vh; display: flex; flex-direction: column; }
+.content { margin-left: var(--side-w); min-height: 100vh; display: flex; flex-direction: column; transition: margin-left .2s ease; }
+.side { transition: width .2s ease; }
+/* Menú plegado: solo iconos */
+@media (min-width: 901px) {
+  :root[data-menu="mini"] { --side-w: 68px; }
+  :root[data-menu="mini"] .side { padding-left: 10px; padding-right: 10px; }
+  :root[data-menu="mini"] .brand { padding-left: 7px; padding-right: 0; }
+  :root[data-menu="mini"] .brand > span:not(.brand-mark),
+  :root[data-menu="mini"] .tabs .nl,
+  :root[data-menu="mini"] .theme-btn span { display: none; }
+  :root[data-menu="mini"] .nav-h { height: 1px; margin: 10px 6px; overflow: hidden; color: transparent; background: var(--line); }
+  :root[data-menu="mini"] .tabs a, :root[data-menu="mini"] .theme-btn { justify-content: center; padding: 10px 0; }
+  :root[data-menu="mini"] .chev { transform: rotate(180deg); transform-origin: 14.5px 12px; }
+}
 .wrap { width: 100%; max-width: 1320px; margin: 0 auto; padding: 28px max(16px, env(safe-area-inset-right)) 40px max(16px, env(safe-area-inset-left)); flex: 1; }
 @media (min-width: 900px) { .wrap { padding-left: 32px; padding-right: 32px; } }
 .foot { color: var(--muted-mark); font-size: 12px; padding: 16px 32px 24px; max-width: 1320px; margin: 0 auto; width: 100%; border-top: 1px solid var(--line); }
@@ -212,6 +225,7 @@ a { color: var(--accent-text); }
   .brand b { display: inline; }
   .theme-btn { width: auto; padding: 8px; }
   .theme-btn span { display: none; }
+  #menu-btn { display: none; }
   .tabs { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 0; background: var(--side); border-top: 1px solid var(--line); padding: 4px 4px max(4px, env(safe-area-inset-bottom)); }
   .nav-h { display: none; }
   .tabs a { flex: 1 1 0; min-width: 0; flex-direction: column; gap: 3px; padding: 6px 2px; font-size: 10.5px; border-radius: 8px; }
