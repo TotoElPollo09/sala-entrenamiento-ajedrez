@@ -15,7 +15,7 @@
   <link rel="stylesheet" href="vendor/cm-chessboard/assets/extensions/markers/markers.css">
   <link rel="stylesheet" href="vendor/cm-chessboard/assets/extensions/arrows/arrows.css">
   <link rel="stylesheet" href="vendor/cm-chessboard/assets/extensions/promotion-dialog/promotion-dialog.css">
-  <link rel="stylesheet" href="css/app.css?v=11">
+  <link rel="stylesheet" href="css/app.css?v=12">
 </head>
 <body>
   <aside class="side">
@@ -28,6 +28,7 @@
       <a href="#openings" data-page="openings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg><span class="nl">Aperturas</span><span class="ns" aria-hidden="true">Aperturas</span></a>
       <a href="#rivals" data-page="rivals"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-7 7-7s7 3 7 7"/><path d="M16 4a4 4 0 0 1 0 8M22 21c0-3-2-6-5-7"/></svg><span class="nl">Rivales</span><span class="ns" aria-hidden="true">Rivales</span></a>
       <a href="#tactics" data-page="tactics"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg><span class="nl">Táctica</span><span class="ns" aria-hidden="true">Táctica</span></a>
+      <a href="#ranking" data-page="ranking"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3"/></svg><span class="nl">Ranking</span><span class="ns" aria-hidden="true">Ranking</span></a>
       <a href="#database" data-page="database"><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><span class="nl">Base de datos</span><span class="ns" aria-hidden="true">Base</span></a>
       <p class="nav-h">Cuenta</p>
       <a href="#settings" data-page="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span class="nl">Ajustes</span><span class="ns" aria-hidden="true">Ajustes</span></a>
@@ -43,12 +44,13 @@
     <div id="page-openings" class="page" hidden></div>
     <div id="page-rivals" class="page" hidden></div>
     <div id="page-tactics" class="page" hidden></div>
+    <div id="page-ranking" class="page" hidden></div>
     <div id="page-database" class="page" hidden></div>
     <div id="page-settings" class="page" hidden></div>
   </main>
   <footer class="foot">Motor: Stockfish 18 (GPLv3) · Partidas y explorador: API de Lichess · Datos de entrenamiento: tu hoja de Google</footer>
   </div>
   <script src="vendor/d3.min.js"></script>
-  <script type="module" src="js/app.js?v=11"></script>
+  <script type="module" src="js/app.js?v=12"></script>
 </body>
 </html>
