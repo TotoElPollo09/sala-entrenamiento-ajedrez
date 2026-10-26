@@ -6,11 +6,12 @@ import * as openings from './openings.js'
 import * as rivals from './rivals.js'
 import * as database from './database.js'
 import * as tactics from './tactics.js'
+import * as ranking from './ranking.js'
 import * as settingsPage from './settings-page.js'
 import { on } from './store.js'
 import { bindKeys } from './board.js'
 
-const PAGES = { dashboard, analysis, studio, openings, rivals, tactics, database, settings: settingsPage }
+const PAGES = { dashboard, analysis, studio, openings, rivals, tactics, ranking, database, settings: settingsPage }
 let current = null
 
 for (const [id, mod] of Object.entries(PAGES)) mod.init(document.getElementById(`page-${id}`))
