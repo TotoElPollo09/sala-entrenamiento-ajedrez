@@ -9,6 +9,10 @@ export const REGLAS = {
   dia: 2, // cada día con algo de entrenamiento
 }
 
+// Peso de cada modalidad en partidas y en subida de rating: rápidas pesa más, luego blitz y luego bullet.
+export const PESO = { classical: 3, rapid: 3, blitz: 2, bullet: 1 }
+const peso = (mod) => PESO[mod] ?? 1
+
 export const CATS = [
   { id: 'partidas', name: 'Partidas' },
   { id: 'puzzles', name: 'Puzzles' },
@@ -72,10 +76,11 @@ export function scorePeriod(data, players, period, hoy) {
       const n = (porDia.get(d) || 0) + 1
       porDia.set(d, n)
       if (n > REGLAS.partidasDia) continue
+      const w = peso(r.Modalidad)
       if (r.Resultado === 'Victoria') {
-        det.victorias++; pts.partidas += REGLAS.victoria
-        if (r['Rating rival'] != null && r['Mi rating'] != null && r['Rating rival'] > r['Mi rating']) { det.sorpresas++; pts.partidas += REGLAS.sorpresa }
-      } else if (r.Resultado === 'Empate') { det.empates++; pts.partidas += REGLAS.empate } else if (r.Resultado === 'Derrota') det.derrotas++
+        det.victorias++; pts.partidas += REGLAS.victoria * w
+        if (r['Rating rival'] != null && r['Mi rating'] != null && r['Rating rival'] > r['Mi rating']) { det.sorpresas++; pts.partidas += REGLAS.sorpresa * w }
+      } else if (r.Resultado === 'Empate') { det.empates++; pts.partidas += REGLAS.empate * w } else if (r.Resultado === 'Derrota') det.derrotas++
     }
 
     // Puzzles acertados
@@ -116,7 +121,7 @@ export function scorePeriod(data, players, period, hoy) {
       const antes = s.filter((r) => day(r.Fecha) < start).pop() || dentro[0]
       const g = dentro[dentro.length - 1].Rating - antes.Rating
       det.ratingGanado[mod] = g
-      if (g > 0) pts.rating += Math.floor(g / REGLAS.ratingDiv)
+      if (g > 0) pts.rating += Math.floor(g / REGLAS.ratingDiv) * peso(mod)
     }
 
     det.dias = activos.size

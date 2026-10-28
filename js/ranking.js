@@ -1,6 +1,6 @@
 // Página Ranking: liga por puntos entre los jugadores de Ajustes, por semana o por mes.
 import { loadAll } from './sheet.js'
-import { REGLAS, CATS, todayIso, historial } from './league.js'
+import { REGLAS, PESO, CATS, todayIso, historial } from './league.js'
 import { settings, onSettingsChange } from './store.js'
 
 const MOD = { blitz: 'blitz', bullet: 'bullet', rapid: 'rápidas', classical: 'clásicas', puzzle: 'puzzles', correspondence: 'correspondencia' }
@@ -46,10 +46,11 @@ const HTML = `
   <section class="card">
     <h3>Cómo se puntúa</h3>
     <ul class="k-rules">
-      <li><b>Partidas</b> (solo puntuables): victoria ${REGLAS.victoria}, empate ${REGLAS.empate}, y +${REGLAS.sorpresa} si ganas a un rival con más rating. Cuentan las ${REGLAS.partidasDia} primeras de cada día.</li>
+      <li><b>Peso por modalidad</b>: en partidas y en rating, rápidas cuenta ×${PESO.rapid}, blitz ×${PESO.blitz} y bullet ×${PESO.bullet}.</li>
+      <li><b>Partidas</b> (solo puntuables): victoria ${REGLAS.victoria}, empate ${REGLAS.empate}, y +${REGLAS.sorpresa} si ganas a un rival con más rating, multiplicado por el peso. Una victoria en rápidas vale ${REGLAS.victoria * PESO.rapid}, en blitz ${REGLAS.victoria * PESO.blitz} y en bullet ${REGLAS.victoria * PESO.bullet}. Cuentan las ${REGLAS.partidasDia} primeras de cada día.</li>
       <li><b>Puzzles</b>: ${REGLAS.puzzle} por puzzle acertado, hasta ${REGLAS.puzzlesDia} al día. Solo cuentan si la hoja tiene puzzles de todos los jugadores.</li>
       <li><b>Puzzle Storm</b>: 1 punto por cada ${REGLAS.stormDiv} de tu mejor puntuación del día, y +${REGLAS.stormRecord} cada vez que bates tu récord.</li>
-      <li><b>Rating</b>: 1 punto por cada ${REGLAS.ratingDiv} de rating que subes en cada modalidad (bullet, blitz, rápidas, puzzles) durante el periodo. Bajar no resta.</li>
+      <li><b>Rating</b>: 1 punto por cada ${REGLAS.ratingDiv} de rating que subes en cada modalidad durante el periodo, multiplicado por el peso (puzzles ×1). Bajar no resta.</li>
       <li><b>Constancia</b>: ${REGLAS.dia} puntos por cada día con alguna partida, puzzle o Storm.</li>
     </ul>
     <p class="note">La semana va de lunes a domingo. Los datos empiezan el 1 de enero de 2026. El periodo en curso no suma al palmarés hasta que termina.</p>
