@@ -10,6 +10,9 @@ const HTML = `
   <h3>Hoja de Google</h3>
   <label class="field"><span>Enlace o ID de la hoja</span><input id="s-sheet" placeholder="https://docs.google.com/spreadsheets/d/…"></label>
   <p class="note">La hoja tiene que estar compartida como "Cualquier persona con el enlace: lector" para que la web la pueda leer.</p>
+  <h3>Hábitos</h3>
+  <label class="field"><span>Dirección del script de hábitos (opcional)</span><input id="s-habits" placeholder="https://script.google.com/macros/s/…/exec"></label>
+  <p class="note">Con el script de tu hoja puedes marcar las casillas desde la página Hábitos y crear la pestaña de cada mes nuevo. Pasos para instalarlo: <a href="https://github.com/TotoElPollo09/sala-entrenamiento-ajedrez/blob/main/tools/habitos-apps-script.gs" target="_blank" rel="noopener">habitos-apps-script.gs</a>. Sin él, la página solo lee la hoja.</p>
   <h3>Lichess</h3>
   <label class="field"><span>Token personal (opcional)</span><input id="s-token" type="password" autocomplete="off" placeholder="lip_…"></label>
   <p class="note">Solo hace falta para el explorador de maestros y para descargar partidas más rápido. Créalo en lichess.org/account/oauth/token sin marcar ningún permiso.</p>
@@ -39,6 +42,7 @@ export function init(root) {
   box.querySelectorAll('input').forEach((inp) => { inp.value = settings.players[inp.dataset.p][inp.dataset.k] || '' })
   root.querySelector('#s-sheet').value = settings.sheetId
   root.querySelector('#s-token').value = settings.lichessToken
+  root.querySelector('#s-habits').value = settings.habitsUrl
   root.querySelector('#s-base').value = settings.bigBaseUrl
   root.querySelector('#s-bkey').value = settings.bigBaseKeyId
   root.querySelector('#s-bsecret').value = settings.bigBaseSecret
@@ -53,6 +57,7 @@ export function init(root) {
       players,
       sheetId: sheetIdFrom(root.querySelector('#s-sheet').value),
       lichessToken: root.querySelector('#s-token').value.trim(),
+      habitsUrl: root.querySelector('#s-habits').value.trim(),
       bigBaseUrl: root.querySelector('#s-base').value.trim(),
       bigBaseKeyId: root.querySelector('#s-bkey').value.trim(),
       bigBaseSecret: root.querySelector('#s-bsecret').value.trim(),

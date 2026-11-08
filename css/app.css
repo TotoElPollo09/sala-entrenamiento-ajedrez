@@ -460,6 +460,11 @@ td.nowrap { white-space: nowrap; }
 .h-grid thead th { white-space: nowrap; }
 .h-ck { display: inline-grid; place-items: center; width: 19px; height: 19px; border-radius: 5px; border: 1.5px solid var(--muted-mark); vertical-align: middle; }
 .h-ck.on { background: var(--accent); border-color: var(--accent); }
+button.h-ck { padding: 0; background: none; cursor: pointer; transition: transform .08s, border-color .12s; }
+button.h-ck.on { background: var(--accent); }
+button.h-ck:hover { border-color: var(--accent); }
+button.h-ck:active { transform: scale(.88); }
+button.h-ck:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .h-ck svg { width: 14px; height: 14px; fill: none; stroke: var(--accent-fg); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 .h-grid .h-tot { font-family: var(--font-mono); font-size: 12px; white-space: nowrap; padding: 0 6px; border-left: 1px solid var(--line); }
 .h-grid .h-pc { min-width: 7rem; padding: 0 2px 0 4px; }
