@@ -75,3 +75,22 @@ export async function loadAll() {
   const entries = await Promise.all(Object.entries(TABS).map(async ([k, tab]) => [k, await loadTab(tab)]))
   return Object.fromEntries(entries)
 }
+
+// Lee un rango concreto de una pestaña, sin cabeceras, como filas de texto.
+// Devuelve null si la pestaña no existe (gviz contesta con error o con otra pestaña).
+export async function loadRange(tab, range) {
+  if (!settings.sheetId) throw new Error('Pega el enlace de tu hoja de Google en Ajustes para ver tus hábitos.')
+  const url = `https://docs.google.com/spreadsheets/d/${settings.sheetId}/gviz/tq?tqx=out:csv&headers=0&sheet=${encodeURIComponent(tab)}&range=${range}`
+  let res
+  try {
+    res = await fetch(url)
+  } catch {
+    throw new Error('No se pudo leer la hoja de Google. Compártela como "Cualquier persona con el enlace: lector".')
+  }
+  const text = await res.text()
+  if (text.trimStart().startsWith('<')) {
+    throw new Error('La hoja de Google no es pública. Compártela como "Cualquier persona con el enlace: lector" o revisa su ID en Ajustes.')
+  }
+  if (!res.ok) return null
+  return parseCsv(text)
+}
