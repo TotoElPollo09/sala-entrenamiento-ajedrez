@@ -8,6 +8,7 @@ const DEFAULTS = {
     { name: 'Mari', lichess: 'genio3015' },
   ],
   lichessToken: '',
+  habitsUrl: '', // dirección del script de la hoja para marcar hábitos desde la web
   bigBaseUrl: '', // dirección de la base grande; vacío = carpeta base/ de la propia web
   bigBaseKeyId: '', // clave de solo lectura si la base es privada (Cloudflare R2)
   bigBaseSecret: '',

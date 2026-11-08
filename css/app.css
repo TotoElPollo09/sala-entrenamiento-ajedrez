@@ -441,3 +441,49 @@ td.nowrap { white-space: nowrap; }
 .k-det { margin-top: 10px; display: grid; gap: 2px; }
 .k-det .note { margin: 0; }
 .k-rules { margin: 0 0 10px; padding-left: 1.2em; display: grid; gap: 8px; font-size: 13.5px; }
+
+/* Hábitos */
+.h-sel select { min-width: 9.5rem; }
+.h-box { max-height: none; }
+.h-grid { border-collapse: separate; border-spacing: 0; font-size: 13px; width: 100%; }
+.h-grid th, .h-grid td { padding: 0; text-align: center; border-bottom: 1px solid var(--line); height: 34px; }
+.h-grid thead th { color: var(--muted); font-weight: 600; font-size: 10.5px; letter-spacing: .04em; height: 22px; background: var(--panel); }
+.h-grid thead th.h-wk { white-space: nowrap; color: var(--accent-text); font-size: 11px; text-transform: uppercase; letter-spacing: .07em; border-bottom: 2px solid color-mix(in srgb, var(--accent) 55%, var(--line)); }
+.h-grid thead th.h-num { font-family: var(--font-mono); font-size: 11.5px; color: var(--fg); }
+.h-grid .h-ws { border-left: 1px solid var(--line); }
+.h-grid th.h-today, .h-grid td.h-today { background: color-mix(in srgb, var(--accent) 13%, var(--panel)); }
+.h-grid thead th.h-today.h-num { color: var(--accent-text); font-weight: 800; }
+.h-grid td.h-fut .h-ck { opacity: .45; }
+.h-grid .h-name { text-align: left; padding: 0 12px 0 2px; font-weight: 600; min-width: 10rem; max-width: 15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: sticky; left: 0; background: var(--panel); z-index: 1; }
+.h-grid thead .h-name { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; z-index: 2; }
+.h-grid td { min-width: 27px; }
+.h-grid thead th { white-space: nowrap; }
+.h-ck { display: inline-grid; place-items: center; width: 19px; height: 19px; border-radius: 5px; border: 1.5px solid var(--muted-mark); vertical-align: middle; }
+.h-ck.on { background: var(--accent); border-color: var(--accent); }
+button.h-ck { padding: 0; background: none; cursor: pointer; transition: transform .08s, border-color .12s; }
+button.h-ck.on { background: var(--accent); }
+button.h-ck:hover { border-color: var(--accent); }
+button.h-ck:active { transform: scale(.88); }
+button.h-ck:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.h-ck svg { width: 14px; height: 14px; fill: none; stroke: var(--accent-fg); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.h-grid .h-tot { font-family: var(--font-mono); font-size: 12px; white-space: nowrap; padding: 0 6px; border-left: 1px solid var(--line); }
+.h-grid .h-pc { min-width: 7rem; padding: 0 2px 0 4px; }
+.h-grid td.h-pc > div { display: flex; align-items: center; gap: 8px; }
+.h-grid td.h-pc b { font-family: var(--font-mono); font-size: 12px; min-width: 2.6rem; text-align: right; }
+.h-bar { flex: 1; height: 7px; border-radius: 99px; background: var(--panel-2); overflow: hidden; min-width: 2.5rem; }
+.h-bar i { display: block; height: 100%; background: var(--good); border-radius: inherit; }
+.h-prog { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.h-donut { --p: 0; width: 150px; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--good) calc(var(--p) * 1%), color-mix(in srgb, var(--bad) 70%, var(--panel)) 0); -webkit-mask: radial-gradient(circle, transparent 54%, #000 55%); mask: radial-gradient(circle, transparent 54%, #000 55%); position: relative; }
+.h-dwrap { position: relative; }
+#h-donut-v { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 800 1.7rem/1 var(--font-display); }
+#h-donut-v small { font-size: .55em; color: var(--muted); }
+.h-legend { display: grid; gap: 14px; }
+.h-lg { display: grid; gap: 2px; padding-left: 12px; border-left: 4px solid var(--good); }
+.h-lg.todo { border-color: color-mix(in srgb, var(--bad) 70%, var(--panel)); }
+.h-lg .label { font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: .07em; text-transform: uppercase; }
+.h-lg b { font: 800 1.5rem/1.1 var(--font-display); }
+.h-bars { display: grid; gap: 8px; margin-top: 8px; }
+.h-brow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(4rem, 9rem) 2.8rem; gap: 10px; align-items: center; font-size: 13px; }
+.h-bn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.h-brow b { font-family: var(--font-mono); font-size: 12px; text-align: right; }
+@media (max-width: 640px) { .h-grid .h-name { min-width: 9rem; max-width: 10rem; } }
