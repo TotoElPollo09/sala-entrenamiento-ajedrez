@@ -54,7 +54,7 @@ function accion(p) {
 }
 
 function conCerrojo(fn) {
-  const lock = LockService.getDocumentLock()
+  const lock = LockService.getScriptLock()
   lock.waitLock(20000)
   try { return fn() } finally { lock.releaseLock() }
 }
