@@ -2,7 +2,12 @@
 import { Chess, DEFAULT_POSITION } from '../vendor/chess.js'
 
 export const NAGS = { 1: '!', 2: '?', 3: '!!', 4: '??', 5: '!?', 6: '?!' }
+// Signos de valoración de la posición (como en ChessBase), con su código NAG del PGN.
+export const POS_NAGS = { 7: '□', 10: '=', 13: '∞', 14: '⩲', 15: '⩱', 16: '±', 17: '∓', 18: '+−', 19: '−+' }
 const NAG_OF = Object.fromEntries(Object.entries(NAGS).map(([k, v]) => [v, Number(k)]))
+// Signos escritos como texto dentro del PGN (algunos programas no usan $n).
+const GLYPH_NAG = { '=': 10, '∞': 13, '+=': 14, '⩲': 14, '=+': 15, '⩱': 15, '+/-': 16, '±': 16, '-/+': 17, '∓': 17, '+-': 18, '+−': 18, '-+': 19, '−+': 19, '□': 7 }
+const NAG_GROUPS = [[1, 2, 3, 4, 5, 6], [7], [10, 11, 12, 13, 14, 15, 16, 17, 18, 19]]
 
 export class GameTree {
   constructor(startFen = DEFAULT_POSITION, headers = {}) {
@@ -73,11 +78,37 @@ export class GameTree {
     return true
   }
 
+  // Pone o quita un signo (número NAG o glifo !, ?…). Los de un mismo grupo se excluyen entre sí.
   toggleNag(node, glyph) {
-    const nag = NAG_OF[glyph]
+    const nag = typeof glyph === 'number' ? glyph : NAG_OF[glyph] || Number(glyph)
     if (!nag || !node.parent) return
-    // !, ?, !!, ??, !?, ?! se excluyen entre sí
-    node.nags = node.nags.includes(nag) ? node.nags.filter((x) => x !== nag) : [...node.nags.filter((x) => x > 6), nag]
+    const group = NAG_GROUPS.find((g) => g.includes(nag)) || [nag]
+    node.nags = node.nags.includes(nag) ? node.nags.filter((x) => x !== nag) : [...node.nags.filter((x) => !group.includes(x)), nag].sort((a, b) => a - b)
+  }
+
+  // Convierte la variante del nodo en la línea principal (sube todas las bifurcaciones).
+  promoteToMain(node) {
+    let moved = false
+    while (this.promote(node)) moved = true
+    return moved
+  }
+
+  // Borra todas las variantes y deja solo la línea principal.
+  removeVariations() {
+    let n = this.root
+    let any = false
+    while (n.children.length) {
+      for (const v of n.children.slice(1)) { this.remove(v); any = true }
+      n = n.children[0]
+    }
+    return any
+  }
+
+  // Borra todos los comentarios de la partida.
+  removeComments() {
+    let any = false
+    for (const n of this.byId.values()) if (n.comment) { n.comment = ''; any = true }
+    return any
   }
 
   toPgn() {
@@ -152,6 +183,7 @@ export function parsePgn(text) {
     if (t[0] === '{') { (last || tree.root).comment = [(last || tree.root).comment, t.slice(1, -1).trim()].filter(Boolean).join(' '); continue }
     if (t[0] === ';' || /^\d+\.(\.\.)?$/.test(t) || t === '...' || /^(1-0|0-1|1\/2-1\/2|\*)$/.test(t)) continue
     if (t[0] === '$') { if (last) last.nags.push(Number(t.slice(1))); continue }
+    if (GLYPH_NAG[t]) { if (last && !last.nags.includes(GLYPH_NAG[t])) last.nags.push(GLYPH_NAG[t]); continue }
     if (t === '(') { stack.push({ cur, last }); cur = last ? last.parent : cur; last = null; continue }
     if (t === ')') { const s = stack.pop(); if (s) ({ cur, last } = s); continue }
     if (bad) continue
