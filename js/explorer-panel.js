@@ -49,10 +49,11 @@ const fmtN = d3.format(',')
 
 export class ExplorerPanel {
   // onMove(san): jugar una jugada; onGame(pgn, info): abrir una partida.
-  constructor(el, { onMove, onGame }) {
+  constructor(el, { onMove, onGame, onResult }) {
     this.el = el
     this.onMove = onMove
     this.onGame = onGame
+    this.onResult = onResult
     this.p = loadPrefs()
     if (!this.p.player) this.p.player = settings.players.find((x) => x.lichess)?.lichess || ''
     this.cache = new Map()
@@ -169,6 +170,7 @@ export class ExplorerPanel {
       const total = (r.white || 0) + (r.draws || 0) + (r.black || 0)
       status.textContent = `${this.summary()} · ${fmtN(total)} partidas${r.opening ? ` · ${r.opening.eco} ${r.opening.name}` : ''}`
       this.render(r, total)
+      this.onResult?.(r, fen)
     } catch (e) {
       if (id !== this.req) return
       status.textContent = e.message

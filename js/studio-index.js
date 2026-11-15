@@ -35,6 +35,7 @@ export function queryLine(items, sans, { player = '', color = 'any' } = {}) {
   const q = player.trim().toLowerCase()
   const moves = new Map()
   const games = []
+  const whiteMoves = sans.length % 2 === 0
   for (const it of items) {
     if (prefix && !(it.line === prefix || it.line.startsWith(prefix + ' '))) continue
     if (q) {
@@ -46,15 +47,30 @@ export function queryLine(items, sans, { player = '', color = 'any' } = {}) {
     if (!rest) continue
     const sp = rest.indexOf(' ')
     const san = sp < 0 ? rest : rest.slice(0, sp)
-    const s = moves.get(san) || { san, n: 0, w: 0, d: 0, l: 0 }
+    const s = moves.get(san) || { san, n: 0, w: 0, d: 0, l: 0, eloSum: 0, eloN: 0, oppSum: 0, oppN: 0, ptsR: 0, last: '' }
     s.n += 1
     if (it.r === '1-0') s.w += 1
     else if (it.r === '0-1') s.l += 1
     else if (it.r === '½-½') s.d += 1
+    // Datos del jugador que hace la jugada (como las columnas Elo y Perf. de la referencia de ChessBase).
+    const me = Number(whiteMoves ? it.we : it.be) || 0
+    const opp = Number(whiteMoves ? it.be : it.we) || 0
+    if (me) { s.eloSum += me; s.eloN += 1 }
+    if (opp && (it.r === '1-0' || it.r === '0-1' || it.r === '½-½')) { s.oppSum += opp; s.oppN += 1; s.ptsR += it.r === '½-½' ? 0.5 : (it.r === '1-0') === whiteMoves ? 1 : 0 }
+    if (it.d > s.last) s.last = it.d
     moves.set(san, s)
   }
   games.sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0))
-  return { total: games.length, moves: [...moves.values()].sort((a, b) => b.n - a.n), games, deep: false }
+  const list = [...moves.values()].sort((a, b) => b.n - a.n).map(({ eloSum, eloN, oppSum, oppN, ptsR, ...m }) => ({
+    ...m, avg: eloN ? Math.round(eloSum / eloN) : null, perf: oppN ? performance(oppSum / oppN, ptsR / oppN) : null,
+  }))
+  return { total: games.length, moves: list, games, deep: false }
+}
+
+// Rendimiento: Elo medio de los rivales + diferencia según la puntuación (fórmula logística, limitada a ±800).
+export function performance(oppAvg, score) {
+  const p = Math.min(0.99, Math.max(0.01, score))
+  return Math.round(oppAvg + Math.max(-800, Math.min(800, -400 * Math.log10(1 / p - 1))))
 }
 
 // Las jugadas siguientes de una partida desde la línea dada, para la columna "Jugadas".
