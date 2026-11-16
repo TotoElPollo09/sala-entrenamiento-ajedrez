@@ -6,13 +6,19 @@
  *   - lea y marque las casillas de un mes,
  *   - cree la pestaña del mes nuevo copiando los hábitos del último mes (los meses viejos se quedan guardados).
  *
+ * Va en un proyecto de Apps Script APARTE, para no tocar el script que ya tiene la hoja (sincronización con Lichess, dashboard…).
  * Instalación (una sola vez):
- *   1. En la hoja: Extensiones → Apps Script. Borra lo que haya y pega este archivo entero. Guarda.
- *   2. Implementar → Nueva implementación → tipo «Aplicación web».
+ *   1. Entra en https://script.google.com → «Nuevo proyecto». Ponle de nombre «Hábitos Sala».
+ *      Borra lo que trae el proyecto nuevo (solo es una función vacía) y pega este archivo entero.
+ *   2. Abajo, en HOJA_ID, pega el ID de tu hoja (lo que va entre /d/ y /edit en su enlace). Guarda.
+ *   3. Implementar → Nueva implementación → tipo «Aplicación web».
  *      Ejecutar como: Yo.  Quién tiene acceso: Cualquier usuario.  → Implementar y autoriza.
- *   3. Copia la «URL de la aplicación web» (acaba en /exec) y pégala en la web, en Ajustes → Hábitos.
+ *   4. Copia la «URL de la aplicación web» (acaba en /exec) y pégala en la web, en Ajustes → Hábitos.
  * Si cambias este código, vuelve a Implementar → Gestionar implementaciones → editar → Versión nueva.
  */
+
+// ID de la hoja Habit_Entrenamiento (entre /d/ y /edit en su enlace).
+const HOJA_ID = 'PEGA_AQUI_EL_ID_DE_TU_HOJA'
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 const FILA0 = 20      // primera fila de hábitos
@@ -20,6 +26,11 @@ const FILAS = 20      // filas 20 a 39
 const COL0 = 4        // columna D
 const COLS = 36       // D a AM: 6 semanas × 6 días (lunes a sábado)
 const AUX = 47        // columna AU: cálculos propios de cada pestaña
+
+function libro() {
+  if (!HOJA_ID || /PEGA_AQUI/.test(HOJA_ID)) throw new Error('Falta poner el ID de la hoja en HOJA_ID dentro del script.')
+  return SpreadsheetApp.openById(HOJA_ID)
+}
 
 // ---------- Web ----------
 
@@ -43,7 +54,7 @@ function accion(p) {
 }
 
 function conCerrojo(fn) {
-  const lock = LockService.getDocumentLock()
+  const lock = LockService.getScriptLock()
   lock.waitLock(20000)
   try { return fn() } finally { lock.releaseLock() }
 }
@@ -62,11 +73,11 @@ function infoPestana(sh) {
 }
 
 function lista() {
-  return SpreadsheetApp.getActive().getSheets().filter(esTracker).map(infoPestana)
+  return libro().getSheets().filter(esTracker).map(infoPestana)
 }
 
 function hoja(nombre) {
-  const sh = SpreadsheetApp.getActive().getSheetByName(String(nombre || ''))
+  const sh = libro().getSheetByName(String(nombre || ''))
   if (!sh || !esTracker(sh)) throw new Error('No existe la pestaña «' + nombre + '».')
   return sh
 }
@@ -96,7 +107,7 @@ function marcar(p) {
 
 // Crea la pestaña de un mes copiando la del último mes guardado de ese jugador, con las casillas vacías.
 function nuevoMes(p) {
-  const ss = SpreadsheetApp.getActive()
+  const ss = libro()
   const anio = Number(p.anio), mes = Number(p.mes)
   const jugador = String(p.jugador || '').trim()
   if (!jugador || !(anio > 2000) || !(mes >= 1 && mes <= 12)) throw new Error('Faltan jugador, año o mes.')
@@ -143,23 +154,17 @@ function independizar(sh) {
   sh.getRange(1, AUX - 1, filas.length, 2).setValues(filas)
   sh.getRange('AU3').setNumberFormat('dd/mm/yyyy')
   // Referencias a las pestañas de cálculos («Datos», «Datos Mari»…) → a la columna AU de esta pestaña.
-  SpreadsheetApp.getActive().getSheets().map((s) => s.getName()).filter((n) => /^Datos/i.test(n)).forEach((n) => {
+  libro().getSheets().map((s) => s.getName()).filter((n) => /^Datos/i.test(n)).forEach((n) => {
     ["'" + n + "'!$E$", n + '!$E$'].forEach((ref) => sh.createTextFinder(ref).matchFormulaText(true).replaceAllWith('$AU$'))
   })
   sh.hideColumns(AUX - 1, 2)
 }
 
-// ---------- Menú en la hoja ----------
+// ---------- Arreglar las pestañas que ya existen ----------
 
-function onOpen() {
-  SpreadsheetApp.getUi().createMenu('Sala de Entrenamiento')
-    .addItem('Hacer independiente esta pestaña de hábitos', 'menuIndependizar')
-    .addToUi()
-}
-
-function menuIndependizar() {
-  const sh = SpreadsheetApp.getActiveSheet()
-  if (!esTracker(sh)) return SpreadsheetApp.getUi().alert('Esta pestaña no es un habit tracker.')
-  independizar(sh)
-  SpreadsheetApp.getUi().alert('Listo: «' + sh.getName() + '» ya calcula sus fechas con su propio mes y año.')
+// Ejecútala una vez desde el editor (elige «independizarTodas» arriba y pulsa Ejecutar).
+// Cada pestaña de hábitos pasa a calcular sus fechas con su propio mes y año. Las casillas no se tocan.
+function independizarTodas() {
+  const hechas = libro().getSheets().filter(esTracker).map((sh) => { independizar(sh); return sh.getName() })
+  Logger.log('Pestañas arregladas: ' + hechas.join(', '))
 }
